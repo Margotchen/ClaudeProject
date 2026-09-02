@@ -24,10 +24,6 @@ function generateOrderNo() {
   return `ORD${ts}${random}`;
 }
 
-function escapeLike(value) {
-  return value.replace(/[%_]/g, '\\$&');
-}
-
 class BookingService {
   async createBooking(userId, data) {
     const { scheduleId, cabinClass, passengers, contactName, contactPhone } = data;
@@ -170,8 +166,7 @@ class BookingService {
       where.status = Number(status);
     }
     if (keyword) {
-      const safeKeyword = escapeLike(String(keyword));
-      where.order_no = { [Op.like]: `%${safeKeyword}%` };
+      where.order_no = { [Op.substring]: String(keyword) };
     }
 
     const { count, rows } = await Order.findAndCountAll({

@@ -159,6 +159,9 @@ const loadSeatMap = async () => {
     if (!selectedPassenger.value && seatMap.value?.selectedSeats.length > 0) {
       selectedPassenger.value = seatMap.value.selectedSeats[0]
     }
+  } catch (err) {
+    ElMessage.error(err?.message || t('common.unknown'))
+    goBack()
   } finally {
     loading.value = false
   }

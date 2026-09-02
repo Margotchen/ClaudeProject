@@ -80,10 +80,11 @@ class CheckinService {
 
     const selectedSeats = [];
     order.passengers.forEach(p => {
-      if (p.ticket?.seatSelection) {
+      const ticket = p.ticket;
+      if (ticket) {
         selectedSeats.push({
-          seatNo: p.ticket.seatSelection.seat_no,
-          ticketId: p.ticket.id,
+          seatNo: ticket.seatSelection?.seat_no || ticket.seat_no || null,
+          ticketId: ticket.id,
           passengerName: p.name
         });
       }
