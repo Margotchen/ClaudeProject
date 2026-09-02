@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1>Flight Detail</h1>
+    <h1>{{ $t('flightSearch.title') }}</h1>
   </div>
 </template>
 

@@ -1,38 +1,38 @@
 <template>
   <div class="payment-page">
-    <h1>Payment</h1>
+    <h1>{{ $t('payment.title') }}</h1>
 
     <el-card v-loading="loading" class="order-card">
       <template #header>
         <div class="card-header">
-          <span>Order {{ order?.order_no }}</span>
-          <el-tag :type="statusType(order?.status)">{{ statusText(order?.status) }}</el-tag>
+          <span>{{ $t('common.order') }} {{ order?.order_no }}</span>
+          <el-tag :type="orderStatusType(order?.status)">{{ orderStatusText(order?.status) }}</el-tag>
         </div>
       </template>
 
       <div v-if="order" class="order-info">
         <div class="info-row">
-          <span class="label">Flight:</span>
+          <span class="label">{{ $t('payment.flight') }}:</span>
           <span>{{ order.schedule?.flight?.flight_no }}</span>
         </div>
         <div class="info-row">
-          <span class="label">Route:</span>
+          <span class="label">{{ $t('payment.route') }}:</span>
           <span>{{ order.schedule?.flight?.departureAirport?.city_name }} ({{ order.schedule?.flight?.departureAirport?.airport_code }}) → {{ order.schedule?.flight?.arrivalAirport?.city_name }} ({{ order.schedule?.flight?.arrivalAirport?.airport_code }})</span>
         </div>
         <div class="info-row">
-          <span class="label">Departure:</span>
-          <span>{{ formatDate(order.schedule?.departure_time) }} {{ formatTime(order.schedule?.departure_time) }}</span>
+          <span class="label">{{ $t('payment.departure') }}:</span>
+          <span>{{ formatDateTime(order.schedule?.departure_time) }}</span>
         </div>
         <div class="info-row">
-          <span class="label">Cabin:</span>
-          <span>{{ capitalize(order.cabin_class) }}</span>
+          <span class="label">{{ $t('payment.cabin') }}:</span>
+          <span>{{ cabinClassText(order.cabin_class) }}</span>
         </div>
         <div class="info-row">
-          <span class="label">Passengers:</span>
+          <span class="label">{{ $t('payment.passengers') }}:</span>
           <span>{{ order.passengers?.length }}</span>
         </div>
         <div class="info-row">
-          <span class="label">Total:</span>
+          <span class="label">{{ $t('payment.total') }}:</span>
           <span class="amount">¥{{ order.total_amount }}</span>
         </div>
       </div>
@@ -40,14 +40,14 @@
 
     <el-card class="pay-card">
       <template #header>
-        <span>Payment Method</span>
+        <span>{{ $t('payment.method') }}</span>
       </template>
       <el-radio-group v-model="payForm.method">
-        <el-radio label="simulate">Simulated Payment</el-radio>
+        <el-radio label="simulate">{{ $t('payment.simulatedPayment') }}</el-radio>
       </el-radio-group>
       <div class="pay-actions">
-        <el-button type="primary" size="large" :loading="paying" @click="handlePay">Pay Now</el-button>
-        <el-button size="large" @click="goBack">Cancel</el-button>
+        <el-button type="primary" size="large" :loading="paying" @click="handlePay">{{ $t('payment.payNow') }}</el-button>
+        <el-button size="large" @click="goBack">{{ $t('common.back') }}</el-button>
       </div>
     </el-card>
   </div>
@@ -59,9 +59,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getOrderDetail } from '@/api/booking'
 import { simulatePayment } from '@/api/payment'
+import { useI18n } from '@/composables/useI18n'
+import { useI18nHelpers } from '@/composables/useI18nHelpers'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
+const { formatDateTime, cabinClassText, orderStatusType, orderStatusText } = useI18nHelpers()
+
 const orderId = route.params.orderId
 
 const loading = ref(false)
@@ -72,38 +77,13 @@ const payForm = reactive({
   method: 'simulate'
 })
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-const formatTime = (dateStr) => {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-}
-
-const capitalize = (str) => {
-  if (!str) return ''
-  return str.charAt(0).toUpperCase() + str.slice(1)
-}
-
-const statusType = (status) => {
-  return ['warning', 'success', 'success', 'primary', 'info', 'info', 'danger'][status] || 'info'
-}
-
-const statusText = (status) => {
-  return ['Pending', 'Paid', 'Ticketed', 'Checked-in', 'Changed', 'Refunded', 'Cancelled'][status] || 'Unknown'
-}
-
 const loadOrder = async () => {
   loading.value = true
   try {
     const res = await getOrderDetail(orderId)
     order.value = res.data
     if (order.value.status !== 0) {
-      ElMessage.info('This order is not pending payment')
+      ElMessage.info(t('payment.notPending'))
     }
   } finally {
     loading.value = false
@@ -118,7 +98,7 @@ const handlePay = async () => {
       payMethod: payForm.method,
       simulateSuccess: true
     })
-    ElMessage.success(res.message || 'Payment successful')
+    ElMessage.success(res.message || t('payment.successful'))
     router.push(`/passenger/order/${orderId}`)
   } finally {
     paying.value = false

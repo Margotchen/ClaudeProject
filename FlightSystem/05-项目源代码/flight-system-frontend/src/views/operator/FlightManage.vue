@@ -1,31 +1,31 @@
 <template>
   <div class="flight-manage">
-    <h1>Flight Management</h1>
+    <h1>{{ $t('flightManage.title') }}</h1>
 
     <el-card class="section-card">
       <template #header>
         <div class="card-header">
-          <span>Flights</span>
-          <el-button type="primary" @click="openFlightDialog()">Add Flight</el-button>
+          <span>{{ $t('flightManage.flights') }}</span>
+          <el-button type="primary" @click="openFlightDialog()">{{ $t('flightManage.addFlight') }}</el-button>
         </div>
       </template>
       <el-table :data="flightList" v-loading="flightLoading" border>
-        <el-table-column prop="flight_no" label="Flight No" />
-        <el-table-column label="Departure">
+        <el-table-column prop="flight_no" :label="$t('flightManage.flightNo')" />
+        <el-table-column :label="$t('flightManage.departure')">
           <template #default="{ row }">
             {{ row.departureAirport?.airport_code }} - {{ row.departureAirport?.city_name }}
           </template>
         </el-table-column>
-        <el-table-column label="Arrival">
+        <el-table-column :label="$t('flightManage.arrival')">
           <template #default="{ row }">
             {{ row.arrivalAirport?.airport_code }} - {{ row.arrivalAirport?.city_name }}
           </template>
         </el-table-column>
-        <el-table-column prop="planned_duration" label="Duration (min)" />
-        <el-table-column label="Actions" width="180">
+        <el-table-column prop="planned_duration" :label="$t('flightManage.duration')" />
+        <el-table-column :label="$t('common.actions')" width="180">
           <template #default="{ row }">
-            <el-button size="small" @click="openFlightDialog(row)">Edit</el-button>
-            <el-button size="small" type="danger" @click="deleteFlight(row)">Delete</el-button>
+            <el-button size="small" @click="openFlightDialog(row)">{{ $t('common.edit') }}</el-button>
+            <el-button size="small" type="danger" @click="deleteFlight(row)">{{ $t('common.delete') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -41,36 +41,36 @@
     <el-card class="section-card">
       <template #header>
         <div class="card-header">
-          <span>Schedules</span>
-          <el-button type="primary" @click="openScheduleDialog()">Add Schedule</el-button>
+          <span>{{ $t('flightManage.schedules') }}</span>
+          <el-button type="primary" @click="openScheduleDialog()">{{ $t('flightManage.addSchedule') }}</el-button>
         </div>
       </template>
       <el-table :data="scheduleList" v-loading="scheduleLoading" border>
-        <el-table-column prop="flight.flight_no" label="Flight No" />
-        <el-table-column label="Route">
+        <el-table-column prop="flight.flight_no" :label="$t('flightManage.flightNo')" />
+        <el-table-column :label="$t('flightManage.departure')">
           <template #default="{ row }">
             {{ row.flight?.departureAirport?.airport_code }} → {{ row.flight?.arrivalAirport?.airport_code }}
           </template>
         </el-table-column>
-        <el-table-column prop="flight_date" label="Date" />
-        <el-table-column prop="departure_time" label="Departure" />
-        <el-table-column prop="arrival_time" label="Arrival" />
-        <el-table-column prop="aircraft.model" label="Aircraft" />
-        <el-table-column label="Prices">
+        <el-table-column prop="flight_date" :label="$t('flightManage.flightDate')" />
+        <el-table-column prop="departure_time" :label="$t('flightManage.departureTime')" />
+        <el-table-column prop="arrival_time" :label="$t('flightManage.arrivalTime')" />
+        <el-table-column prop="aircraft.model" :label="$t('flightManage.aircraft')" />
+        <el-table-column :label="$t('flightManage.prices')">
           <template #default="{ row }">
             E: {{ row.economy_price }} / B: {{ row.business_price }} / F: {{ row.first_price }}
           </template>
         </el-table-column>
-        <el-table-column label="Status">
+        <el-table-column :label="$t('flightManage.status')">
           <template #default="{ row }">
-            <el-tag :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
+            <el-tag :type="flightStatusType(row.status)">{{ flightStatusText(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="Actions" width="220">
+        <el-table-column :label="$t('common.actions')" width="220">
           <template #default="{ row }">
-            <el-button size="small" @click="openScheduleDialog(row)">Edit</el-button>
-            <el-button size="small" type="danger" @click="deleteSchedule(row)">Delete</el-button>
-            <el-button size="small" @click="openStatusDialog(row)">Status</el-button>
+            <el-button size="small" @click="openScheduleDialog(row)">{{ $t('common.edit') }}</el-button>
+            <el-button size="small" type="danger" @click="deleteSchedule(row)">{{ $t('common.delete') }}</el-button>
+            <el-button size="small" @click="openStatusDialog(row)">{{ $t('flightManage.updateStatus') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -84,89 +84,89 @@
     </el-card>
 
     <!-- Flight Dialog -->
-    <el-dialog v-model="flightDialogVisible" :title="flightForm.id ? 'Edit Flight' : 'Add Flight'" width="500px">
+    <el-dialog v-model="flightDialogVisible" :title="flightForm.id ? $t('flightManage.editFlight') : $t('flightManage.addFlight')" width="500px">
       <el-form :model="flightForm" label-width="140px">
-        <el-form-item label="Flight No">
+        <el-form-item :label="$t('flightManage.flightNo')">
           <el-input v-model="flightForm.flightNo" />
         </el-form-item>
-        <el-form-item label="Departure Airport">
-          <el-select v-model="flightForm.departureAirportCode" placeholder="Select">
+        <el-form-item :label="$t('flightManage.departureAirport')">
+          <el-select v-model="flightForm.departureAirportCode" :placeholder="$t('common.select')">
             <el-option v-for="a in airportList" :key="a.id" :label="`${a.airport_code} - ${a.city_name}`" :value="a.airport_code" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Arrival Airport">
-          <el-select v-model="flightForm.arrivalAirportCode" placeholder="Select">
+        <el-form-item :label="$t('flightManage.arrivalAirport')">
+          <el-select v-model="flightForm.arrivalAirportCode" :placeholder="$t('common.select')">
             <el-option v-for="a in airportList" :key="a.id" :label="`${a.airport_code} - ${a.city_name}`" :value="a.airport_code" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Duration (min)">
+        <el-form-item :label="$t('flightManage.duration')">
           <el-input-number v-model="flightForm.plannedDuration" :min="1" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="flightDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" @click="saveFlight">Save</el-button>
+        <el-button @click="flightDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="saveFlight">{{ $t('common.save') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- Schedule Dialog -->
-    <el-dialog v-model="scheduleDialogVisible" :title="scheduleForm.id ? 'Edit Schedule' : 'Add Schedule'" width="500px">
+    <el-dialog v-model="scheduleDialogVisible" :title="scheduleForm.id ? $t('flightManage.editSchedule') : $t('flightManage.addSchedule')" width="500px">
       <el-form :model="scheduleForm" label-width="140px">
-        <el-form-item label="Flight">
-          <el-select v-model="scheduleForm.flightId" placeholder="Select">
+        <el-form-item :label="$t('flightManage.flightNo')">
+          <el-select v-model="scheduleForm.flightId" :placeholder="$t('common.select')">
             <el-option v-for="f in flightList" :key="f.id" :label="f.flight_no" :value="f.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Aircraft">
-          <el-select v-model="scheduleForm.aircraftId" placeholder="Select">
+        <el-form-item :label="$t('flightManage.aircraft')">
+          <el-select v-model="scheduleForm.aircraftId" :placeholder="$t('common.select')">
             <el-option v-for="a in aircraftList" :key="a.id" :label="a.model" :value="a.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Flight Date">
+        <el-form-item :label="$t('flightManage.flightDate')">
           <el-date-picker v-model="scheduleForm.flightDate" type="date" value-format="YYYY-MM-DD" />
         </el-form-item>
-        <el-form-item label="Departure Time">
+        <el-form-item :label="$t('flightManage.departureTime')">
           <el-date-picker v-model="scheduleForm.departureTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" />
         </el-form-item>
-        <el-form-item label="Arrival Time">
+        <el-form-item :label="$t('flightManage.arrivalTime')">
           <el-date-picker v-model="scheduleForm.arrivalTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" />
         </el-form-item>
-        <el-form-item label="Economy Price">
+        <el-form-item :label="$t('flightManage.economyPrice')">
           <el-input-number v-model="scheduleForm.economyPrice" :min="0" />
         </el-form-item>
-        <el-form-item label="Business Price">
+        <el-form-item :label="$t('flightManage.businessPrice')">
           <el-input-number v-model="scheduleForm.businessPrice" :min="0" />
         </el-form-item>
-        <el-form-item label="First Price">
+        <el-form-item :label="$t('flightManage.firstPrice')">
           <el-input-number v-model="scheduleForm.firstPrice" :min="0" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="scheduleDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" @click="saveSchedule">Save</el-button>
+        <el-button @click="scheduleDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="saveSchedule">{{ $t('common.save') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- Status Dialog -->
-    <el-dialog v-model="statusDialogVisible" title="Update Flight Status" width="400px">
+    <el-dialog v-model="statusDialogVisible" :title="$t('flightManage.updateStatus')" width="400px">
       <el-form :model="statusForm" label-width="120px">
-        <el-form-item label="Status">
+        <el-form-item :label="$t('flightManage.status')">
           <el-select v-model="statusForm.status">
-            <el-option label="Normal" :value="1" />
-            <el-option label="Delayed" :value="2" />
-            <el-option label="Cancelled" :value="3" />
+            <el-option :label="$t('flightManage.normal')" :value="1" />
+            <el-option :label="$t('flightManage.delayed')" :value="2" />
+            <el-option :label="$t('flightManage.cancelled')" :value="3" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Delay (min)">
+        <el-form-item :label="$t('flightStatusManage.delay')">
           <el-input-number v-model="statusForm.delayMinutes" :min="0" />
         </el-form-item>
-        <el-form-item label="Reason">
+        <el-form-item :label="$t('common.reason')">
           <el-input v-model="statusForm.reason" type="textarea" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="statusDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" @click="saveStatus">Save</el-button>
+        <el-button @click="statusDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="saveStatus">{{ $t('common.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -180,6 +180,11 @@ import {
   getScheduleList, createSchedule, updateSchedule, deleteSchedule as removeSchedule,
   updateScheduleStatus
 } from '@/api/flight'
+import { useI18n } from '@/composables/useI18n'
+import { useI18nHelpers } from '@/composables/useI18nHelpers'
+
+const { t } = useI18n()
+const { flightStatusType, flightStatusText } = useI18nHelpers()
 
 const flightLoading = ref(false)
 const scheduleLoading = ref(false)
@@ -254,7 +259,7 @@ const saveFlight = async () => {
     } else {
       await createFlight(flightForm)
     }
-    ElMessage.success('Saved')
+    ElMessage.success(t('flightManage.saved'))
     flightDialogVisible.value = false
     loadFlights()
   } catch (err) {
@@ -264,9 +269,9 @@ const saveFlight = async () => {
 
 const deleteFlight = async (row) => {
   try {
-    await ElMessageBox.confirm('Delete this flight?', 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(t('flightManage.deleteConfirm'), t('common.confirm'), { type: 'warning' })
     await removeFlight(row.id)
-    ElMessage.success('Deleted')
+    ElMessage.success(t('flightManage.deleted'))
     loadFlights()
   } catch (err) {
     // cancelled
@@ -299,7 +304,7 @@ const saveSchedule = async () => {
     } else {
       await createSchedule(scheduleForm)
     }
-    ElMessage.success('Saved')
+    ElMessage.success(t('flightManage.saved'))
     scheduleDialogVisible.value = false
     loadSchedules()
   } catch (err) {
@@ -309,9 +314,9 @@ const saveSchedule = async () => {
 
 const deleteSchedule = async (row) => {
   try {
-    await ElMessageBox.confirm('Delete this schedule?', 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(t('flightManage.deleteScheduleConfirm'), t('common.confirm'), { type: 'warning' })
     await removeSchedule(row.id)
-    ElMessage.success('Deleted')
+    ElMessage.success(t('flightManage.deleted'))
     loadSchedules()
   } catch (err) {
     // cancelled
@@ -326,19 +331,12 @@ const openStatusDialog = (row) => {
 const saveStatus = async () => {
   try {
     await updateScheduleStatus(statusForm.id, statusForm)
-    ElMessage.success('Status updated')
+    ElMessage.success(t('flightManage.statusUpdated'))
     statusDialogVisible.value = false
     loadSchedules()
   } catch (err) {
     console.error(err)
   }
-}
-
-const statusType = (status) => {
-  return ['', 'success', 'warning', 'danger'][status] || 'info'
-}
-const statusText = (status) => {
-  return ['', 'Normal', 'Delayed', 'Cancelled'][status] || 'Unknown'
 }
 
 onMounted(() => {

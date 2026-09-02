@@ -1,27 +1,27 @@
 <template>
   <div class="checkin-page">
-    <h1>Check-in & Seat Selection</h1>
+    <h1>{{ $t('checkIn.title') }}</h1>
 
     <el-card v-loading="loading" class="info-card">
       <div v-if="seatMap">
         <div class="info-row">
-          <span class="label">Cabin:</span>
-          <span>{{ capitalize(seatMap.cabinClass) }}</span>
+          <span class="label">{{ $t('checkIn.cabin') }}:</span>
+          <span>{{ cabinClassText(seatMap.cabinClass) }}</span>
         </div>
         <div class="info-row">
-          <span class="label">Departure:</span>
-          <span>{{ formatDate(seatMap.departureTime) }} {{ formatTime(seatMap.departureTime) }}</span>
+          <span class="label">{{ $t('checkIn.departure') }}:</span>
+          <span>{{ formatDateTime(seatMap.departureTime) }}</span>
         </div>
         <div class="info-row">
-          <span class="label">Order Status:</span>
-          <el-tag :type="statusType(seatMap.orderStatus)">{{ statusText(seatMap.orderStatus) }}</el-tag>
+          <span class="label">{{ $t('checkIn.orderStatus') }}:</span>
+          <el-tag :type="orderStatusType(seatMap.orderStatus)">{{ orderStatusText(seatMap.orderStatus) }}</el-tag>
         </div>
       </div>
     </el-card>
 
     <el-card class="passenger-card">
       <template #header>
-        <span>Passengers</span>
+        <span>{{ $t('checkIn.passengers') }}</span>
       </template>
       <div class="passenger-list">
         <div
@@ -31,14 +31,14 @@
           @click="selectPassenger(p)"
         >
           <div class="name">{{ p.passengerName }}</div>
-          <div class="seat">{{ p.seatNo || 'No seat selected' }}</div>
+          <div class="seat">{{ p.seatNo || $t('checkIn.noSeatSelected') }}</div>
         </div>
       </div>
     </el-card>
 
     <el-card class="seat-card">
       <template #header>
-        <span>Seat Map</span>
+        <span>{{ $t('checkIn.seatMap') }}</span>
       </template>
       <div v-if="cabinLayout" class="seat-map">
         <div v-for="row in cabinLayout.rows" :key="row.row" class="seat-row">
@@ -61,15 +61,15 @@
         </div>
       </div>
       <div class="legend">
-        <div class="legend-item"><span class="seat sample available" /> Available</div>
-        <div class="legend-item"><span class="seat sample selected" /> Selected</div>
-        <div class="legend-item"><span class="seat sample occupied" /> Occupied</div>
+        <div class="legend-item"><span class="seat sample available" /> {{ $t('checkIn.available') }}</div>
+        <div class="legend-item"><span class="seat sample selected" /> {{ $t('checkIn.selected') }}</div>
+        <div class="legend-item"><span class="seat sample occupied" /> {{ $t('checkIn.occupied') }}</div>
       </div>
     </el-card>
 
     <div class="actions">
-      <el-button type="primary" size="large" :loading="checkingIn" @click="handleCheckIn">Check In</el-button>
-      <el-button size="large" @click="goBack">Back</el-button>
+      <el-button type="primary" size="large" :loading="checkingIn" @click="handleCheckIn">{{ $t('checkIn.checkIn') }}</el-button>
+      <el-button size="large" @click="goBack">{{ $t('common.back') }}</el-button>
     </div>
   </div>
 </template>
@@ -79,9 +79,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getSeatMap, selectSeat, checkIn } from '@/api/checkin'
+import { useI18n } from '@/composables/useI18n'
+import { useI18nHelpers } from '@/composables/useI18nHelpers'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
+const { formatDateTime, cabinClassText, orderStatusType, orderStatusText } = useI18nHelpers()
+
 const orderId = route.params.orderId
 
 const loading = ref(false)
@@ -93,31 +98,6 @@ const cabinLayout = computed(() => {
   if (!seatMap.value) return null
   return seatMap.value.seats.find(s => s.cabin === seatMap.value.cabinClass)
 })
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-const formatTime = (dateStr) => {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-}
-
-const capitalize = (str) => {
-  if (!str) return ''
-  return str.charAt(0).toUpperCase() + str.slice(1)
-}
-
-const statusType = (status) => {
-  return ['warning', 'success', 'success', 'primary', 'info', 'info', 'danger'][status] || 'info'
-}
-
-const statusText = (status) => {
-  return ['Pending', 'Paid', 'Ticketed', 'Checked-in', 'Changed', 'Refunded', 'Cancelled'][status] || 'Unknown'
-}
 
 const isOccupied = (seatNo) => {
   if (!seatMap.value) return false
@@ -137,7 +117,7 @@ const selectPassenger = (p) => {
 
 const handleSeatClick = async (seatNo) => {
   if (!selectedPassenger.value) {
-    ElMessage.warning('Please select a passenger first')
+    ElMessage.warning(t('checkIn.selectPassengerFirst'))
     return
   }
   if (isOccupied(seatNo)) {
@@ -148,7 +128,7 @@ const handleSeatClick = async (seatNo) => {
       ticketId: selectedPassenger.value.ticketId,
       seatNo
     })
-    ElMessage.success('Seat selected')
+    ElMessage.success(t('checkIn.seatSelected'))
     loadSeatMap()
   } catch (err) {
     console.error(err)
@@ -158,7 +138,7 @@ const handleSeatClick = async (seatNo) => {
 const handleCheckIn = async () => {
   const allSelected = seatMap.value?.selectedSeats.every(s => s.seatNo)
   if (!allSelected) {
-    ElMessage.warning('Please select seats for all passengers')
+    ElMessage.warning(t('checkIn.selectAllSeats'))
     return
   }
   checkingIn.value = true

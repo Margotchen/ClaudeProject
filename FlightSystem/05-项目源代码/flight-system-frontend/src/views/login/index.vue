@@ -2,23 +2,23 @@
   <div class="login-page">
     <el-card class="login-card" shadow="always">
       <template #header>
-        <h2 class="login-title">Flight Booking System</h2>
+        <h2 class="login-title">{{ $t('login.title') }}</h2>
       </template>
       <el-form :model="form" :rules="rules" ref="formRef" label-position="top" @submit.prevent="handleLogin">
-        <el-form-item label="Username" prop="username">
-          <el-input v-model="form.username" placeholder="Enter username" />
+        <el-form-item :label="$t('login.username')" prop="username">
+          <el-input v-model="form.username" :placeholder="$t('login.usernamePlaceholder')" />
         </el-form-item>
-        <el-form-item label="Password" prop="password">
-          <el-input v-model="form.password" type="password" placeholder="Enter password" />
+        <el-form-item :label="$t('login.password')" prop="password">
+          <el-input v-model="form.password" type="password" :placeholder="$t('login.passwordPlaceholder')" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="loading" @click="handleLogin" style="width: 100%">
-            Login
+            {{ $t('common.login') }}
           </el-button>
         </el-form-item>
       </el-form>
       <div class="demo-accounts">
-        <p>Demo accounts:</p>
+        <p>{{ $t('login.demoAccounts') }}:</p>
         <el-tag size="small">passenger / pass123</el-tag>
         <el-tag size="small">service / svc123</el-tag>
         <el-tag size="small">operator / op123</el-tag>
@@ -32,10 +32,12 @@ import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { useI18n } from '@/composables/useI18n'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const { t } = useI18n()
 
 const form = reactive({
   username: '',
@@ -43,8 +45,8 @@ const form = reactive({
 })
 
 const rules = {
-  username: [{ required: true, message: 'Please enter username', trigger: 'blur' }],
-  password: [{ required: true, message: 'Please enter password', trigger: 'blur' }]
+  username: [{ required: true, message: t('login.usernamePlaceholder'), trigger: 'blur' }],
+  password: [{ required: true, message: t('login.passwordPlaceholder'), trigger: 'blur' }]
 }
 
 const formRef = ref()
@@ -55,7 +57,7 @@ const handleLogin = async () => {
     await formRef.value.validate()
     loading.value = true
     await userStore.login(form)
-    ElMessage.success('Login successful')
+    ElMessage.success(t('login.success'))
     const redirect = route.query.redirect || '/passenger/search'
     router.push(redirect)
   } catch (err) {

@@ -2,21 +2,21 @@
   <div class="flight-search">
     <el-card class="search-card">
       <el-form :model="searchForm" inline>
-        <el-form-item label="Origin">
-          <el-select v-model="searchForm.origin" placeholder="From" clearable>
+        <el-form-item :label="$t('flightSearch.origin')">
+          <el-select v-model="searchForm.origin" :placeholder="$t('flightSearch.originPlaceholder')" clearable>
             <el-option v-for="a in airports" :key="a.code" :label="`${a.city} (${a.code})`" :value="a.code" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Destination">
-          <el-select v-model="searchForm.destination" placeholder="To" clearable>
+        <el-form-item :label="$t('flightSearch.destination')">
+          <el-select v-model="searchForm.destination" :placeholder="$t('flightSearch.destinationPlaceholder')" clearable>
             <el-option v-for="a in airports" :key="a.code" :label="`${a.city} (${a.code})`" :value="a.code" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Date">
+        <el-form-item :label="$t('flightSearch.date')">
           <el-date-picker v-model="searchForm.date" type="date" value-format="YYYY-MM-DD" :disabled-date="disabledDate" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch" :loading="loading">Search</el-button>
+          <el-button type="primary" @click="handleSearch" :loading="loading">{{ $t('common.search') }}</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -24,13 +24,13 @@
     <el-card v-loading="loading" class="result-card">
       <template #header>
         <div class="card-header">
-          <span>Search Results</span>
-          <span v-if="pagination.total">{{ pagination.total }} flights found</span>
+          <span>{{ $t('flightSearch.results') }}</span>
+          <span v-if="pagination.total">{{ $t('flightSearch.found', { count: pagination.total }) }}</span>
         </div>
       </template>
 
       <div v-if="flightList.length === 0 && !loading" class="empty-tip">
-        Please select origin, destination and date to search flights.
+        {{ $t('flightSearch.emptyTip') }}
       </div>
 
       <div v-for="item in flightList" :key="item.id" class="flight-item">
@@ -51,7 +51,7 @@
           </div>
           <div class="aircraft">{{ item.aircraft?.model }}</div>
           <div class="status">
-            <el-tag :type="statusType(item.status)">{{ statusText(item.status) }}</el-tag>
+            <el-tag :type="flightStatusType(item.status)">{{ flightStatusText(item.status) }}</el-tag>
             <span v-if="item.delay_minutes > 0" class="delay">+{{ item.delay_minutes }} min</span>
           </div>
         </div>
@@ -60,8 +60,8 @@
           <div v-for="cabin in cabinClasses" :key="cabin.key" class="cabin-item">
             <div class="cabin-name">{{ cabin.label }}</div>
             <div class="price">¥{{ getCabinPrice(item, cabin.key) }}</div>
-            <div class="seats">{{ getCabinSeats(item, cabin.key) }} seats left</div>
-            <el-button type="primary" size="small" @click="goBooking(item, cabin.key)">Book</el-button>
+            <div class="seats">{{ $t('flightSearch.seatsLeft', { count: getCabinSeats(item, cabin.key) }) }}</div>
+            <el-button type="primary" size="small" @click="goBooking(item, cabin.key)">{{ $t('flightSearch.book') }}</el-button>
           </div>
         </div>
       </div>
@@ -79,12 +79,17 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { searchFlights } from '@/api/flight'
+import { useI18n } from '@/composables/useI18n'
+import { useI18nHelpers } from '@/composables/useI18nHelpers'
 
 const router = useRouter()
+const { t } = useI18n()
+const { formatTime, flightStatusType, flightStatusText } = useI18nHelpers()
+
 const loading = ref(false)
 const flightList = ref([])
 
@@ -96,11 +101,11 @@ const airports = [
   { code: 'TFU', city: 'Chengdu' }
 ]
 
-const cabinClasses = [
-  { key: 'economy', label: 'Economy' },
-  { key: 'business', label: 'Business' },
-  { key: 'first', label: 'First' }
-]
+const cabinClasses = computed(() => [
+  { key: 'economy', label: t('cabin.economy') },
+  { key: 'business', label: t('cabin.business') },
+  { key: 'first', label: t('cabin.first') }
+])
 
 const searchForm = reactive({
   origin: 'PEK',
@@ -120,12 +125,6 @@ const disabledDate = (date) => {
   return date < today
 }
 
-const formatTime = (dateStr) => {
-  if (!dateStr) return '-'
-  const d = new Date(dateStr)
-  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-}
-
 const getCabinPrice = (item, cabin) => {
   return item[`${cabin}_price`] || 0
 }
@@ -135,20 +134,13 @@ const getCabinSeats = (item, cabin) => {
   return inv ? inv.available_seats : 0
 }
 
-const statusType = (status) => {
-  return ['', 'success', 'warning', 'danger'][status] || 'info'
-}
-const statusText = (status) => {
-  return ['', 'Normal', 'Delayed', 'Cancelled'][status] || 'Unknown'
-}
-
 const handleSearch = () => {
   if (!searchForm.origin || !searchForm.destination || !searchForm.date) {
-    ElMessage.warning('Please select origin, destination and date')
+    ElMessage.warning(t('flightSearch.missingFields'))
     return
   }
   if (searchForm.origin === searchForm.destination) {
-    ElMessage.warning('Origin and destination cannot be the same')
+    ElMessage.warning(t('flightSearch.sameAirport'))
     return
   }
   pagination.page = 1
@@ -178,12 +170,12 @@ const loadFlights = async () => {
 
 const goBooking = (item, cabin) => {
   if (item.status === 3) {
-    ElMessage.warning('This flight has been cancelled')
+    ElMessage.warning(t('flightSearch.cancelled'))
     return
   }
   const seats = getCabinSeats(item, cabin)
   if (seats <= 0) {
-    ElMessage.warning('No seats available in this cabin')
+    ElMessage.warning(t('flightSearch.noSeats'))
     return
   }
   router.push(`/passenger/booking/${item.id}?cabin=${cabin}`)

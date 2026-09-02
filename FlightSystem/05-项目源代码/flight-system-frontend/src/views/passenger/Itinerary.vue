@@ -1,63 +1,63 @@
 <template>
   <div class="itinerary-page">
-    <h1>Itinerary</h1>
+    <h1>{{ $t('itinerary.title') }}</h1>
 
     <el-card v-loading="loading" class="itinerary-card">
       <template #header>
         <div class="card-header">
-          <span>Order {{ order?.order_no }}</span>
-          <el-button type="primary" @click="downloadPDF">Download PDF</el-button>
+          <span>{{ $t('common.order') }} {{ order?.order_no }}</span>
+          <el-button type="primary" @click="downloadPDF">{{ $t('itinerary.downloadPDF') }}</el-button>
         </div>
       </template>
 
       <div v-if="order" class="itinerary-content">
         <div class="section">
-          <h3>Flight Information</h3>
+          <h3>{{ $t('itinerary.flightInfo') }}</h3>
           <div class="info-row">
-            <span class="label">Flight No:</span>
+            <span class="label">{{ $t('orderDetail.flightNo') }}:</span>
             <span>{{ order.schedule?.flight?.flight_no }}</span>
           </div>
           <div class="info-row">
-            <span class="label">Route:</span>
+            <span class="label">{{ $t('itinerary.route') }}:</span>
             <span>{{ order.schedule?.flight?.departureAirport?.city_name }} ({{ order.schedule?.flight?.departureAirport?.airport_code }}) → {{ order.schedule?.flight?.arrivalAirport?.city_name }} ({{ order.schedule?.flight?.arrivalAirport?.airport_code }})</span>
           </div>
           <div class="info-row">
-            <span class="label">Departure:</span>
-            <span>{{ formatDate(order.schedule?.departure_time) }} {{ formatTime(order.schedule?.departure_time) }}</span>
+            <span class="label">{{ $t('itinerary.departure') }}:</span>
+            <span>{{ formatDateTime(order.schedule?.departure_time) }}</span>
           </div>
           <div class="info-row">
-            <span class="label">Arrival:</span>
-            <span>{{ formatDate(order.schedule?.arrival_time) }} {{ formatTime(order.schedule?.arrival_time) }}</span>
+            <span class="label">{{ $t('itinerary.arrival') }}:</span>
+            <span>{{ formatDateTime(order.schedule?.arrival_time) }}</span>
           </div>
           <div class="info-row">
-            <span class="label">Aircraft:</span>
+            <span class="label">{{ $t('itinerary.aircraft') }}:</span>
             <span>{{ order.schedule?.aircraft?.model }}</span>
           </div>
         </div>
 
         <div class="section">
-          <h3>Passengers</h3>
+          <h3>{{ $t('itinerary.passengers') }}</h3>
           <el-table :data="order.passengers" border>
             <el-table-column type="index" width="50" />
-            <el-table-column prop="name" label="Name" />
-            <el-table-column prop="id_card" label="ID Card" />
-            <el-table-column prop="ticket.ticket_no" label="Ticket No" />
-            <el-table-column prop="ticket.seat_no" label="Seat" />
+            <el-table-column prop="name" :label="$t('orderDetail.name')" />
+            <el-table-column prop="id_card" :label="$t('orderDetail.idCard')" />
+            <el-table-column prop="ticket.ticket_no" :label="$t('orderDetail.ticketNo')" />
+            <el-table-column prop="ticket.seat_no" :label="$t('orderDetail.seat')" />
           </el-table>
         </div>
 
         <div class="section">
-          <h3>Payment</h3>
+          <h3>{{ $t('itinerary.payment') }}</h3>
           <div class="info-row">
-            <span class="label">Total Amount:</span>
+            <span class="label">{{ $t('itinerary.totalAmount') }}:</span>
             <span class="amount">¥{{ order.total_amount }}</span>
           </div>
           <div class="info-row">
-            <span class="label">Payment Status:</span>
-            <span>{{ order.payments?.[0]?.pay_status === 1 ? 'Paid' : 'Unpaid' }}</span>
+            <span class="label">{{ $t('itinerary.paymentStatus') }}:</span>
+            <span>{{ order.payments?.[0]?.pay_status === 1 ? $t('itinerary.paid') : $t('itinerary.unpaid') }}</span>
           </div>
           <div v-if="order.payments?.[0]?.transaction_no" class="info-row">
-            <span class="label">Transaction No:</span>
+            <span class="label">{{ $t('itinerary.transactionNo') }}:</span>
             <span>{{ order.payments[0].transaction_no }}</span>
           </div>
         </div>
@@ -71,24 +71,17 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getItinerary, downloadItineraryPDF } from '@/api/itinerary'
+import { useI18n } from '@/composables/useI18n'
+import { useI18nHelpers } from '@/composables/useI18nHelpers'
 
 const route = useRoute()
+const { t } = useI18n()
+const { formatDateTime } = useI18nHelpers()
+
 const orderId = route.params.orderId
 
 const loading = ref(false)
 const order = ref(null)
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-const formatTime = (dateStr) => {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-}
 
 const loadItinerary = async () => {
   loading.value = true
@@ -113,7 +106,7 @@ const downloadPDF = async () => {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
   } catch (err) {
-    ElMessage.error('Download failed')
+    ElMessage.error(t('itinerary.downloadFailed'))
     console.error(err)
   }
 }

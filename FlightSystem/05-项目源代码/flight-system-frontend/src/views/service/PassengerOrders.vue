@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1>Passenger Orders</h1>
+    <h1>{{ $t('menu.passengerOrders') }}</h1>
   </div>
 </template>
 

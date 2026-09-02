@@ -1,6 +1,6 @@
 <template>
   <div class="booking-page">
-    <h1>Book Flight</h1>
+    <h1>{{ $t('booking.title') }}</h1>
 
     <el-card v-loading="loading" class="flight-card">
       <div v-if="schedule" class="flight-summary">
@@ -27,42 +27,42 @@
     <el-card class="booking-card">
       <template #header>
         <div class="card-header">
-          <span>Passengers</span>
-          <el-button type="primary" size="small" @click="addPassenger">Add Passenger</el-button>
+          <span>{{ $t('booking.passengers') }}</span>
+          <el-button type="primary" size="small" @click="addPassenger">{{ $t('booking.addPassenger') }}</el-button>
         </div>
       </template>
 
       <el-form :model="bookingForm" label-width="120px">
-        <el-form-item label="Cabin Class">
+        <el-form-item :label="$t('booking.cabinClass')">
           <el-radio-group v-model="bookingForm.cabinClass">
-            <el-radio-button label="economy">Economy ¥{{ schedule?.economy_price }}</el-radio-button>
-            <el-radio-button label="business">Business ¥{{ schedule?.business_price }}</el-radio-button>
-            <el-radio-button label="first">First ¥{{ schedule?.first_price }}</el-radio-button>
+            <el-radio-button label="economy">{{ cabinClassText('economy') }} ¥{{ schedule?.economy_price }}</el-radio-button>
+            <el-radio-button label="business">{{ cabinClassText('business') }} ¥{{ schedule?.business_price }}</el-radio-button>
+            <el-radio-button label="first">{{ cabinClassText('first') }} ¥{{ schedule?.first_price }}</el-radio-button>
           </el-radio-group>
         </el-form-item>
 
         <div v-for="(p, index) in bookingForm.passengers" :key="index" class="passenger-row">
-          <el-form-item :label="`Passenger ${index + 1}`">
-            <el-input v-model="p.name" placeholder="Name" style="width: 180px; margin-right: 10px;" />
-            <el-input v-model="p.idCard" placeholder="ID Card" style="width: 220px; margin-right: 10px;" />
-            <el-button type="danger" size="small" @click="removePassenger(index)">Remove</el-button>
+          <el-form-item :label="$t('booking.passenger', { index: index + 1 })">
+            <el-input v-model="p.name" :placeholder="$t('booking.namePlaceholder')" style="width: 180px; margin-right: 10px;" />
+            <el-input v-model="p.idCard" :placeholder="$t('booking.idCardPlaceholder')" style="width: 220px; margin-right: 10px;" />
+            <el-button type="danger" size="small" @click="removePassenger(index)">{{ $t('booking.remove') }}</el-button>
           </el-form-item>
         </div>
 
-        <el-form-item label="Contact Name">
+        <el-form-item :label="$t('booking.contactName')">
           <el-input v-model="bookingForm.contactName" style="width: 300px;" />
         </el-form-item>
-        <el-form-item label="Contact Phone">
+        <el-form-item :label="$t('booking.contactPhone')">
           <el-input v-model="bookingForm.contactPhone" style="width: 300px;" />
         </el-form-item>
 
-        <el-form-item label="Total Amount">
+        <el-form-item :label="$t('booking.totalAmount')">
           <div class="total-amount">¥{{ totalAmount }}</div>
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="submitBooking" :loading="submitting">Submit Order</el-button>
-          <el-button @click="goBack">Back</el-button>
+          <el-button type="primary" @click="submitBooking" :loading="submitting">{{ $t('booking.submitOrder') }}</el-button>
+          <el-button @click="goBack">{{ $t('common.back') }}</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -75,9 +75,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getScheduleDetail } from '@/api/flight'
 import { createBooking } from '@/api/booking'
+import { useI18n } from '@/composables/useI18n'
+import { useI18nHelpers } from '@/composables/useI18nHelpers'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
+const { formatDate, formatTime, cabinClassText } = useI18nHelpers()
+
 const scheduleId = route.params.scheduleId
 const cabinFromQuery = route.query.cabin || 'economy'
 
@@ -101,22 +106,10 @@ const totalAmount = computed(() => {
   return unitPrice.value * bookingForm.passengers.length
 })
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-const formatTime = (dateStr) => {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-}
-
 const addPassenger = () => {
   const available = getAvailableSeats()
   if (bookingForm.passengers.length >= available) {
-    ElMessage.warning('No more seats available in selected cabin')
+    ElMessage.warning(t('booking.noMoreSeats'))
     return
   }
   bookingForm.passengers.push({ name: '', idCard: '' })
@@ -138,7 +131,7 @@ const loadSchedule = async () => {
     const res = await getScheduleDetail(scheduleId)
     schedule.value = res.data
     if (schedule.value.status === 3) {
-      ElMessage.warning('This flight has been cancelled')
+      ElMessage.warning(t('booking.cancelledFlight'))
     }
   } finally {
     loading.value = false
@@ -147,22 +140,22 @@ const loadSchedule = async () => {
 
 const validate = () => {
   if (!bookingForm.cabinClass) {
-    ElMessage.warning('Please select cabin class')
+    ElMessage.warning(t('booking.selectCabin'))
     return false
   }
   const available = getAvailableSeats()
   if (bookingForm.passengers.length > available) {
-    ElMessage.warning('Not enough seats available')
+    ElMessage.warning(t('booking.notEnoughSeats'))
     return false
   }
   for (const p of bookingForm.passengers) {
     if (!p.name.trim() || !p.idCard.trim()) {
-      ElMessage.warning('Please fill in all passenger information')
+      ElMessage.warning(t('booking.fillPassenger'))
       return false
     }
   }
   if (!bookingForm.contactName.trim() || !bookingForm.contactPhone.trim()) {
-    ElMessage.warning('Please fill in contact information')
+    ElMessage.warning(t('booking.fillContact'))
     return false
   }
   return true
@@ -179,7 +172,7 @@ const submitBooking = async () => {
       contactName: bookingForm.contactName.trim(),
       contactPhone: bookingForm.contactPhone.trim()
     })
-    ElMessage.success('Order created')
+    ElMessage.success(t('booking.orderCreated'))
     router.push(`/passenger/order/${res.data.id}`)
   } finally {
     submitting.value = false
