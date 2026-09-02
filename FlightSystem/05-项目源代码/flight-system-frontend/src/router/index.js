@@ -13,28 +13,27 @@ const routes = [
   {
     path: '/',
     component: Layout,
-    redirect: '/passenger/search',
     children: [
       // Passenger routes
       {
         path: '/passenger/search',
         component: () => import('@/views/passenger/FlightSearch.vue'),
-        meta: { roles: ['passenger', 'service', 'operator'] }
+        meta: { roles: ['passenger'] }
       },
       {
         path: '/passenger/detail/:id',
         component: () => import('@/views/passenger/FlightDetail.vue'),
-        meta: { roles: ['passenger', 'service', 'operator'] }
+        meta: { roles: ['passenger'] }
       },
       {
         path: '/passenger/booking/:scheduleId',
         component: () => import('@/views/passenger/Booking.vue'),
-        meta: { roles: ['passenger', 'service', 'operator'] }
+        meta: { roles: ['passenger'] }
       },
       {
         path: '/passenger/orders',
         component: () => import('@/views/passenger/MyOrders.vue'),
-        meta: { roles: ['passenger', 'service', 'operator'] }
+        meta: { roles: ['passenger'] }
       },
       {
         path: '/passenger/order/:id',
@@ -44,22 +43,22 @@ const routes = [
       {
         path: '/passenger/pay/:orderId',
         component: () => import('@/views/passenger/Payment.vue'),
-        meta: { roles: ['passenger', 'service', 'operator'] }
+        meta: { roles: ['passenger'] }
       },
       {
         path: '/passenger/checkin/:orderId',
         component: () => import('@/views/passenger/CheckIn.vue'),
-        meta: { roles: ['passenger', 'service', 'operator'] }
+        meta: { roles: ['passenger'] }
       },
       {
         path: '/passenger/itinerary/:orderId',
         component: () => import('@/views/passenger/Itinerary.vue'),
-        meta: { roles: ['passenger', 'service', 'operator'] }
+        meta: { roles: ['passenger'] }
       },
       {
         path: '/passenger/refund-change/:orderId',
         component: () => import('@/views/passenger/RefundChange.vue'),
-        meta: { roles: ['passenger', 'service', 'operator'] }
+        meta: { roles: ['passenger'] }
       },
       // Service routes
       {
@@ -97,6 +96,12 @@ const router = createRouter({
   routes
 })
 
+const defaultHomeByRole = {
+  service: '/service/refunds',
+  operator: '/operator/dashboard',
+  passenger: '/passenger/search'
+}
+
 router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
 
@@ -114,6 +119,10 @@ router.beforeEach(async (to, from, next) => {
 
   if (!userStore.isLoggedIn) {
     return next('/login')
+  }
+
+  if (to.path === '/') {
+    return next(defaultHomeByRole[userStore.roleCode] || '/passenger/search')
   }
 
   if (to.meta.roles && !to.meta.roles.includes(userStore.roleCode)) {

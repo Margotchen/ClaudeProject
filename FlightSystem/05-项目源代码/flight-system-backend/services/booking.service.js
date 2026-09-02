@@ -3,7 +3,7 @@ const db = require('../models');
 const { throwError } = require('../utils/response');
 
 const {
-  Order, OrderPassenger, FlightSchedule, SeatInventory, Ticket, Payment, Flight, Airport, Aircraft
+  Order, OrderPassenger, FlightSchedule, SeatInventory, Ticket, Payment, Flight, Airport, Aircraft, SysUser
 } = db;
 
 const CABIN_PRICE_FIELDS = {
@@ -22,6 +22,10 @@ function generateOrderNo() {
     String(now.getSeconds()).padStart(2, '0');
   const random = Math.floor(Math.random() * 9000) + 1000;
   return `ORD${ts}${random}`;
+}
+
+function escapeLike(value) {
+  return value.replace(/[%_]/g, '\\$&');
 }
 
 class BookingService {
@@ -147,6 +151,50 @@ class BookingService {
               ]
             }
           ]
+        }
+      ],
+      offset: (page - 1) * pageSize,
+      limit: pageSize,
+      order: [['createdAt', 'DESC']]
+    });
+
+    return {
+      list: rows,
+      pagination: { page, pageSize, total: count }
+    };
+  }
+
+  async getAllOrders({ page = 1, pageSize = 10, status, keyword }) {
+    const where = {};
+    if (status !== undefined && status !== '' && status !== null && Number.isInteger(Number(status))) {
+      where.status = Number(status);
+    }
+    if (keyword) {
+      const safeKeyword = escapeLike(String(keyword));
+      where.order_no = { [Op.like]: `%${safeKeyword}%` };
+    }
+
+    const { count, rows } = await Order.findAndCountAll({
+      where,
+      include: [
+        {
+          model: FlightSchedule,
+          as: 'schedule',
+          include: [
+            {
+              model: Flight,
+              as: 'flight',
+              include: [
+                { model: Airport, as: 'departureAirport', attributes: ['airport_code', 'city_name'] },
+                { model: Airport, as: 'arrivalAirport', attributes: ['airport_code', 'city_name'] }
+              ]
+            }
+          ]
+        },
+        {
+          model: SysUser,
+          as: 'user',
+          attributes: ['username', 'real_name']
         }
       ],
       offset: (page - 1) * pageSize,

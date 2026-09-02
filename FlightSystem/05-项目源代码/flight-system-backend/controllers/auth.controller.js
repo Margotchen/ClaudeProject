@@ -61,7 +61,14 @@ exports.profile = async (req, res, next) => {
     if (!user) {
       return res.status(404).json(response(404, 'User not found'));
     }
-    res.json(response(200, 'OK', { user }));
+    const sessionUser = {
+      id: user.id,
+      username: user.username,
+      realName: user.real_name,
+      roleCode: user.role.role_code,
+      roleName: user.role.role_name
+    };
+    res.json(response(200, 'OK', { user: sessionUser }));
   } catch (err) {
     next(err);
   }

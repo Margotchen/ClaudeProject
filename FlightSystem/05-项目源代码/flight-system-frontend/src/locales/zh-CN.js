@@ -50,7 +50,6 @@ export default {
     password: '密码',
     usernamePlaceholder: '请输入用户名',
     passwordPlaceholder: '请输入密码',
-    demoAccounts: '演示账号',
     success: '登录成功'
   },
   flightSearch: {

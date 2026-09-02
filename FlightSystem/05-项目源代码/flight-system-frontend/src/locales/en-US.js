@@ -50,7 +50,6 @@ export default {
     password: 'Password',
     usernamePlaceholder: 'Enter username',
     passwordPlaceholder: 'Enter password',
-    demoAccounts: 'Demo accounts',
     success: 'Login successful'
   },
   flightSearch: {

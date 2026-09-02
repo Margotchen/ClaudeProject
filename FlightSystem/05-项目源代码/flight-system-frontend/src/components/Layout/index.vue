@@ -1,14 +1,14 @@
 <template>
   <el-container class="layout-container">
-    <el-aside width="220px" class="sidebar">
-      <div class="logo">{{ $t('common.appName') }}</div>
+    <el-aside width="240px" class="sidebar">
+      <div class="logo">
+        <span class="logo-icon">✈</span>
+        <span>{{ $t('common.appName') }}</span>
+      </div>
       <el-menu
         :default-active="activeMenu"
         router
         class="menu"
-        background-color="#304156"
-        text-color="#bfcbd9"
-        active-text-color="#409EFF"
       >
         <template v-if="userStore.isPassenger">
           <el-menu-item index="/passenger/search">
@@ -57,10 +57,7 @@
               <el-icon><Bell /></el-icon>
             </el-button>
           </el-badge>
-          <el-select v-model="currentLocale" style="width: 100px">
-            <el-option label="中文" value="zh-CN" />
-            <el-option label="English" value="en-US" />
-          </el-select>
+          <LanguageSwitch />
           <span class="username">{{ userStore.userInfo?.realName || userStore.userInfo?.username }}</span>
           <el-button text @click="logout">{{ $t('common.logout') }}</el-button>
         </div>
@@ -89,9 +86,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search, Tickets, Refresh, Promotion, InfoFilled, DataLine, Bell } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { locale, setLocale } from '@/locales'
 import { useI18nHelpers } from '@/composables/useI18nHelpers'
 import { getUnreadCount, getNotifications, markAsRead } from '@/api/notification'
+import LanguageSwitch from '@/components/LanguageSwitch.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -103,11 +100,6 @@ const showNotifications = ref(false)
 const notifications = ref([])
 const unreadCount = ref(0)
 let notificationTimer = null
-
-const currentLocale = computed({
-  get: () => locale.value,
-  set: (val) => setLocale(val)
-})
 
 const loadNotifications = async () => {
   try {
@@ -165,49 +157,99 @@ onBeforeUnmount(() => {
 }
 
 .sidebar {
-  background-color: #304156;
+  background-color: #fafbfc;
+  border-right: 1px solid #d0d7de;
+  display: flex;
+  flex-direction: column;
 }
 
 .logo {
-  height: 60px;
-  line-height: 60px;
-  text-align: center;
-  color: #fff;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 20px;
+  color: #24292f;
   font-size: 18px;
-  font-weight: bold;
-  border-bottom: 1px solid #1f2d3d;
+  font-weight: 600;
+  border-bottom: 1px solid #d0d7de;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0969da 0%, #0550ae 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
 }
 
 .menu {
   border-right: none;
+  background: transparent;
+  padding: 12px;
+}
+
+.menu :deep(.el-menu-item) {
+  height: 44px;
+  line-height: 44px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  color: #24292f;
+  font-weight: 500;
+}
+
+.menu :deep(.el-menu-item:hover) {
+  background-color: #eaeef2;
+}
+
+.menu :deep(.el-menu-item.is-active) {
+  background-color: #ddf4ff;
+  color: #0969da;
+  font-weight: 600;
+}
+
+.menu :deep(.el-menu-item .el-icon) {
+  color: #57606a;
+}
+
+.menu :deep(.el-menu-item.is-active .el-icon) {
+  color: #0969da;
 }
 
 .header {
-  background-color: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  background-color: #ffffff;
+  border-bottom: 1px solid #d0d7de;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  height: 64px;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 
 .notification-badge {
-  margin-right: 10px;
+  margin-right: 4px;
 }
 
 .username {
-  color: #606266;
+  color: #24292f;
   font-size: 14px;
+  font-weight: 500;
 }
 
 .main-content {
-  background-color: #f0f2f5;
+  background-color: #f6f8fa;
   overflow-y: auto;
+  padding: 24px;
 }
 
 .notification-item {

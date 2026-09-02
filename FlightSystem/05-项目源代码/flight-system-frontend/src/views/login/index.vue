@@ -1,29 +1,55 @@
 <template>
   <div class="login-page">
-    <el-card class="login-card" shadow="always">
-      <template #header>
-        <h2 class="login-title">{{ $t('login.title') }}</h2>
-      </template>
-      <el-form :model="form" :rules="rules" ref="formRef" label-position="top" @submit.prevent="handleLogin">
-        <el-form-item :label="$t('login.username')" prop="username">
-          <el-input v-model="form.username" :placeholder="$t('login.usernamePlaceholder')" />
-        </el-form-item>
-        <el-form-item :label="$t('login.password')" prop="password">
-          <el-input v-model="form.password" type="password" :placeholder="$t('login.passwordPlaceholder')" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleLogin" style="width: 100%">
-            {{ $t('common.login') }}
-          </el-button>
-        </el-form-item>
-      </el-form>
-      <div class="demo-accounts">
-        <p>{{ $t('login.demoAccounts') }}:</p>
-        <el-tag size="small">passenger / pass123</el-tag>
-        <el-tag size="small">service / svc123</el-tag>
-        <el-tag size="small">operator / op123</el-tag>
+    <div class="login-container">
+      <div class="login-brand">
+        <div class="brand-mark">✈</div>
+        <h1 class="brand-title">{{ $t('common.appName') }}</h1>
+        <p class="brand-subtitle">{{ $t('login.title') }}</p>
       </div>
-    </el-card>
+
+      <el-card class="login-card" shadow="never">
+        <el-form
+          ref="formRef"
+          :model="form"
+          :rules="rules"
+          label-position="top"
+          size="large"
+          @submit.prevent="handleLogin"
+        >
+          <el-form-item :label="$t('login.username')" prop="username">
+            <el-input
+              v-model="form.username"
+              :placeholder="$t('login.usernamePlaceholder')"
+              clearable
+            />
+          </el-form-item>
+          <el-form-item :label="$t('login.password')" prop="password">
+            <el-input
+              v-model="form.password"
+              type="password"
+              show-password
+              :placeholder="$t('login.passwordPlaceholder')"
+              clearable
+            />
+          </el-form-item>
+          <el-form-item>
+            <el-button
+              type="primary"
+              size="large"
+              :loading="loading"
+              style="width: 100%"
+              @click="handleLogin"
+            >
+              {{ $t('common.login') }}
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </el-card>
+
+      <footer class="login-footer">
+        <LanguageSwitch />
+      </footer>
+    </div>
   </div>
 </template>
 
@@ -33,6 +59,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useI18n } from '@/composables/useI18n'
+import LanguageSwitch from '@/components/LanguageSwitch.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -58,8 +85,12 @@ const handleLogin = async () => {
     loading.value = true
     await userStore.login(form)
     ElMessage.success(t('login.success'))
-    const redirect = route.query.redirect || '/passenger/search'
-    router.push(redirect)
+    const redirect = route.query.redirect
+    if (typeof redirect === 'string' && redirect.startsWith('/')) {
+      router.push(redirect)
+    } else {
+      router.push('/')
+    }
   } catch (err) {
     console.error(err)
   } finally {
@@ -74,32 +105,90 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f6f8fa;
+  padding: 24px;
+}
+
+.login-container {
+  width: 100%;
+  max-width: 360px;
+}
+
+.login-brand {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.brand-mark {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0969da 0%, #0550ae 100%);
+  color: #fff;
+  font-size: 28px;
+  box-shadow: 0 4px 12px rgba(9, 105, 218, 0.25);
+}
+
+.brand-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #24292f;
+  margin: 0 0 4px;
+  letter-spacing: -0.5px;
+}
+
+.brand-subtitle {
+  font-size: 14px;
+  color: #57606a;
+  margin: 0;
 }
 
 .login-card {
-  width: 400px;
   border-radius: 12px;
+  border: 1px solid #d0d7de;
+  background: #ffffff;
 }
 
-.login-title {
-  text-align: center;
-  margin: 0;
-  color: #303133;
+.login-card :deep(.el-card__body) {
+  padding: 28px;
 }
 
-.demo-accounts {
-  margin-top: 16px;
-  text-align: center;
+.login-card :deep(.el-form-item__label) {
+  color: #24292f;
+  font-weight: 500;
+  padding-bottom: 6px;
 }
 
-.demo-accounts p {
-  margin-bottom: 8px;
-  color: #909399;
-  font-size: 12px;
+.login-card :deep(.el-input__wrapper) {
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #d0d7de inset;
+  transition: box-shadow 0.2s;
 }
 
-.demo-accounts .el-tag {
-  margin: 0 4px;
+.login-card :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 2px #0969da33, 0 0 0 1px #0969da inset;
+}
+
+.login-card :deep(.el-button--primary) {
+  border-radius: 8px;
+  font-weight: 600;
+  background: #0969da;
+  border-color: #0969da;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.login-card :deep(.el-button--primary:hover) {
+  background: #0550ae;
+  border-color: #0550ae;
+}
+
+.login-footer {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
 }
 </style>
