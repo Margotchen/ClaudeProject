@@ -3,12 +3,12 @@
     <el-card class="search-card">
       <el-form :model="searchForm" inline>
         <el-form-item :label="$t('flightSearch.origin')">
-          <el-select v-model="searchForm.origin" :placeholder="$t('flightSearch.originPlaceholder')" clearable>
+          <el-select v-model="searchForm.origin" :placeholder="$t('flightSearch.originPlaceholder')" style="width: 220px">
             <el-option v-for="a in airports" :key="a.code" :label="`${a.city} (${a.code})`" :value="a.code" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('flightSearch.destination')">
-          <el-select v-model="searchForm.destination" :placeholder="$t('flightSearch.destinationPlaceholder')" clearable>
+          <el-select v-model="searchForm.destination" :placeholder="$t('flightSearch.destinationPlaceholder')" style="width: 220px">
             <el-option v-for="a in airports" :key="a.code" :label="`${a.city} (${a.code})`" :value="a.code" />
           </el-select>
         </el-form-item>
