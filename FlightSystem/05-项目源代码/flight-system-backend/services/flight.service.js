@@ -1,6 +1,60 @@
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 const db = require('../models');
 const { throwError } = require('../utils/response');
+
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_WEEKLY_RANGE_DAYS = 31;
+
+function formatLocalDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function buildDateRange(startDate, endDate) {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return [];
+  }
+  const dates = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    dates.push(formatLocalDate(d));
+  }
+  return dates;
+}
+
+function parsePrice(value) {
+  const price = value === null || value === undefined ? null : parseFloat(value);
+  return Number.isFinite(price) ? price : null;
+}
+
+function isValidDateString(dateStr) {
+  if (!DATE_REGEX.test(dateStr)) return false;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(`${dateStr}T00:00:00`);
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() + 1 === month &&
+    date.getDate() === day
+  );
+}
+
+function validateDateRange(startDate, endDate) {
+  if (!isValidDateString(startDate) || !isValidDateString(endDate)) {
+    throwError('Invalid date format, expected YYYY-MM-DD');
+  }
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  if (start > end) {
+    throwError('startDate must be less than or equal to endDate');
+  }
+  const diffDays = (end - start) / (1000 * 60 * 60 * 24);
+  if (diffDays > MAX_WEEKLY_RANGE_DAYS) {
+    throwError(`Date range must not exceed ${MAX_WEEKLY_RANGE_DAYS} days`);
+  }
+}
 
 const {
   Airport, Aircraft, Flight, FlightSchedule, SeatInventory, FlightStatus, Order, Notification
@@ -250,6 +304,51 @@ class FlightService {
       list: rows,
       pagination: { page, pageSize, total: count }
     };
+  }
+
+  // Weekly lowest prices for passenger date bar
+  async searchWeeklyPrices({ originCode, destinationCode, startDate, endDate }) {
+    if (!originCode || !destinationCode || !startDate || !endDate) {
+      throwError('Origin, destination, start date and end date are required');
+    }
+    validateDateRange(startDate, endDate);
+
+    const origin = await Airport.findOne({ where: { airport_code: originCode } });
+    const dest = await Airport.findOne({ where: { airport_code: destinationCode } });
+    if (!origin || !dest) throwError('Airport not found');
+
+    const rows = await FlightSchedule.findAll({
+      attributes: [
+        'flight_date',
+        [Sequelize.fn('MIN', Sequelize.col('economy_price')), 'lowestPrice']
+      ],
+      where: {
+        flight_date: { [Op.between]: [startDate, endDate] },
+        status: { [Op.ne]: 3 }
+      },
+      include: [{
+        model: Flight,
+        as: 'flight',
+        where: {
+          departure_airport_id: origin.id,
+          arrival_airport_id: dest.id
+        },
+        attributes: []
+      }],
+      group: ['flight_date'],
+      raw: true
+    });
+
+    const priceMap = {};
+    rows.forEach(r => {
+      priceMap[r.flight_date] = parsePrice(r.lowestPrice);
+    });
+
+    const dates = buildDateRange(startDate, endDate);
+    return dates.map(date => ({
+      date,
+      lowestPrice: priceMap[date] ?? null
+    }));
   }
 
   // Flight status update

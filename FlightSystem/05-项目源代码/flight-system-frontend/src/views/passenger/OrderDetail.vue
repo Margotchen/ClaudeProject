@@ -74,7 +74,7 @@
           <el-button v-if="order.status === 0" type="danger" @click="cancelOrder">{{ $t('orderDetail.cancelOrder') }}</el-button>
           <el-button v-if="order.status >= 2" type="primary" @click="goCheckIn">{{ $t('orderDetail.checkIn') }}</el-button>
           <el-button v-if="order.status >= 2" @click="goItinerary">{{ $t('orderDetail.itinerary') }}</el-button>
-          <el-button v-if="order.status >= 1" @click="goRefundChange">{{ $t('orderDetail.refundChange') }}</el-button>
+          <el-button v-if="canRefundChange && order.status >= 1" @click="goRefundChange">{{ $t('orderDetail.refundChange') }}</el-button>
         </div>
       </div>
     </el-card>
@@ -82,10 +82,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getOrderDetail, cancelOrder as cancelOrderApi } from '@/api/booking'
+import { useUserStore } from '@/stores/user'
 import { useI18n } from '@/composables/useI18n'
 import { useI18nHelpers } from '@/composables/useI18nHelpers'
 
@@ -93,11 +94,14 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { formatDateTime, cabinClassText, orderStatusType, orderStatusText } = useI18nHelpers()
+const userStore = useUserStore()
 
 const orderId = route.params.id
 
 const loading = ref(false)
 const order = ref(null)
+
+const canRefundChange = computed(() => userStore.isPassenger)
 
 const loadOrder = async () => {
   loading.value = true

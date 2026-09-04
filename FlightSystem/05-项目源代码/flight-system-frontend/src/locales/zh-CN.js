@@ -27,6 +27,7 @@ export default {
     cancel: '取消',
     update: '更新',
     logoutSuccess: '退出登录成功',
+    logoutFailed: '退出登录失败，请稍后重试',
     order: '订单',
     amount: '金额',
     status: '状态',
@@ -50,7 +51,8 @@ export default {
     password: '密码',
     usernamePlaceholder: '请输入用户名',
     passwordPlaceholder: '请输入密码',
-    success: '登录成功'
+    success: '登录成功',
+    failed: '登录失败，请检查用户名或密码'
   },
   flightSearch: {
     title: '机票查询',
@@ -67,7 +69,9 @@ export default {
     sameAirport: '出发地和目的地不能相同',
     missingFields: '请选择出发地、目的地和出发日期',
     cancelled: '该航班已取消',
-    noSeats: '该舱位暂无余票'
+    noSeats: '该舱位暂无余票',
+    weeklyTitle: '一周航班信息',
+    lowest: '低'
   },
   booking: {
     title: '预订航班',

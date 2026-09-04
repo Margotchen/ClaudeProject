@@ -77,6 +77,7 @@ import { getScheduleDetail } from '@/api/flight'
 import { createBooking } from '@/api/booking'
 import { useI18n } from '@/composables/useI18n'
 import { useI18nHelpers } from '@/composables/useI18nHelpers'
+import { useGoBack } from '@/composables/useGoBack'
 
 const route = useRoute()
 const router = useRouter()
@@ -179,9 +180,7 @@ const submitBooking = async () => {
   }
 }
 
-const goBack = () => {
-  router.back()
-}
+const goBack = useGoBack('/passenger/search')
 
 onMounted(() => {
   loadSchedule()

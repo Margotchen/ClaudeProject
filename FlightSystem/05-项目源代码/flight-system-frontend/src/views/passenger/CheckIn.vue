@@ -81,6 +81,7 @@ import { ElMessage } from 'element-plus'
 import { getSeatMap, selectSeat, checkIn } from '@/api/checkin'
 import { useI18n } from '@/composables/useI18n'
 import { useI18nHelpers } from '@/composables/useI18nHelpers'
+import { useGoBack } from '@/composables/useGoBack'
 
 const route = useRoute()
 const router = useRouter()
@@ -167,9 +168,7 @@ const loadSeatMap = async () => {
   }
 }
 
-const goBack = () => {
-  router.back()
-}
+const goBack = useGoBack(`/passenger/order/${orderId}`)
 
 onMounted(() => {
   loadSeatMap()

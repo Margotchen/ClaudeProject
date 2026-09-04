@@ -20,6 +20,8 @@
             <el-input
               v-model="form.username"
               :placeholder="$t('login.usernamePlaceholder')"
+              autocomplete="off"
+              name="username"
               clearable
             />
           </el-form-item>
@@ -27,6 +29,8 @@
             <el-input
               v-model="form.password"
               type="password"
+              autocomplete="new-password"
+              name="password"
               show-password
               :placeholder="$t('login.passwordPlaceholder')"
               clearable
@@ -59,6 +63,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useI18n } from '@/composables/useI18n'
+import { getHomeByRole } from '@/router'
 import LanguageSwitch from '@/components/LanguageSwitch.vue'
 
 const router = useRouter()
@@ -83,16 +88,19 @@ const handleLogin = async () => {
   try {
     await formRef.value.validate()
     loading.value = true
-    await userStore.login(form)
+    const user = await userStore.login({ ...form })
     ElMessage.success(t('login.success'))
+    form.password = ''
     const redirect = route.query.redirect
     if (typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
       router.push(redirect)
     } else {
-      router.push('/')
+      const home = getHomeByRole(user.roleCode) || '/passenger/search'
+      router.push(home)
     }
   } catch (err) {
-    console.error(err)
+    ElMessage.error(err?.message || t('login.failed'))
+    form.password = ''
   } finally {
     loading.value = false
   }

@@ -1,6 +1,7 @@
 import request from '@/utils/request'
 
 export const searchFlights = (params) => request.get('/flights/search', { params })
+export const getWeeklyPrices = (params) => request.get('/flights/weekly', { params })
 
 export const getFlightList = (params) => request.get('/flights', { params })
 export const createFlight = (data) => request.post('/flights', data)

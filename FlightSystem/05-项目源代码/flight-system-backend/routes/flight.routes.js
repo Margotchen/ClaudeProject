@@ -7,6 +7,7 @@ const router = express.Router();
 
 // Public / passenger search
 router.get('/search', flightController.searchFlights);
+router.get('/weekly', flightController.searchWeeklyPrices);
 
 // Operator flight management
 router.get('/', requireAuth, verifyRole('operator'), flightController.listFlights);

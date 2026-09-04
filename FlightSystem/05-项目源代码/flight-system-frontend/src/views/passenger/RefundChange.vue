@@ -63,11 +63,12 @@ import { applyRefund, applyChange } from '@/api/refundChange'
 import { searchFlights } from '@/api/flight'
 import { useI18n } from '@/composables/useI18n'
 import { useI18nHelpers } from '@/composables/useI18nHelpers'
+import { useGoBack } from '@/composables/useGoBack'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
-const { formatDate, formatTime, cabinClassText } = useI18nHelpers()
+const { formatDate, formatTime, formatDateTime, cabinClassText } = useI18nHelpers()
 
 const orderId = route.params.orderId
 
@@ -150,9 +151,7 @@ const submit = async () => {
   }
 }
 
-const goBack = () => {
-  router.back()
-}
+const goBack = useGoBack(`/passenger/order/${orderId}`)
 
 onMounted(() => {
   loadOrder()

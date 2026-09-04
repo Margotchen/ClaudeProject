@@ -119,6 +119,21 @@ exports.searchFlights = async (req, res, next) => {
   }
 };
 
+// Weekly lowest prices for passenger date bar
+exports.searchWeeklyPrices = async (req, res, next) => {
+  try {
+    const result = await flightService.searchWeeklyPrices({
+      originCode: req.query.origin,
+      destinationCode: req.query.destination,
+      startDate: req.query.startDate,
+      endDate: req.query.endDate
+    });
+    res.json(response(200, 'OK', result));
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Flight status update
 exports.updateScheduleStatus = async (req, res, next) => {
   try {

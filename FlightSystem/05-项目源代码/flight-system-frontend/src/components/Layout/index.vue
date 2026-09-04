@@ -130,9 +130,17 @@ const markRead = async (n) => {
 }
 
 const logout = async () => {
-  await userStore.logout()
-  ElMessage.success(t('common.logoutSuccess'))
-  router.push('/login')
+  if (notificationTimer) {
+    clearInterval(notificationTimer)
+    notificationTimer = null
+  }
+  try {
+    await userStore.logout()
+    ElMessage.success(t('common.logoutSuccess'))
+    router.push('/login')
+  } catch (err) {
+    ElMessage.error(err?.message || t('common.logoutFailed'))
+  }
 }
 
 watch(showNotifications, (val) => {

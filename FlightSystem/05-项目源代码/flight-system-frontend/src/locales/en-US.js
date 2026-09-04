@@ -27,6 +27,7 @@ export default {
     cancel: 'Cancel',
     update: 'Update',
     logoutSuccess: 'Logout successful',
+    logoutFailed: 'Logout failed, please try again later',
     order: 'Order',
     amount: 'Amount',
     status: 'Status',
@@ -50,7 +51,8 @@ export default {
     password: 'Password',
     usernamePlaceholder: 'Enter username',
     passwordPlaceholder: 'Enter password',
-    success: 'Login successful'
+    success: 'Login successful',
+    failed: 'Login failed, please check your username or password'
   },
   flightSearch: {
     title: 'Flight Search',
@@ -67,7 +69,9 @@ export default {
     sameAirport: 'Origin and destination cannot be the same',
     missingFields: 'Please select origin, destination and date',
     cancelled: 'This flight has been cancelled',
-    noSeats: 'No seats available in this cabin'
+    noSeats: 'No seats available in this cabin',
+    weeklyTitle: 'Weekly Flights',
+    lowest: 'Low'
   },
   booking: {
     title: 'Book Flight',

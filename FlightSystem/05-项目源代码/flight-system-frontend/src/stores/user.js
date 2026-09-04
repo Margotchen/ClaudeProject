@@ -15,16 +15,30 @@ export const useUserStore = defineStore('user', () => {
     userInfo.value = value
   }
 
+  const clearSession = () => {
+    userInfo.value = null
+  }
+
+  const validateUser = (res) => {
+    const user = res?.data?.user
+    if (!user || !user.roleCode) {
+      throw new Error('Login failed')
+    }
+    return user
+  }
+
   const login = async (credentials) => {
     const res = await loginApi(credentials)
-    userInfo.value = res.data.user
-    return res.data.user
+    const user = validateUser(res)
+    userInfo.value = user
+    return user
   }
 
   const fetchUserInfo = async () => {
     const res = await getProfile()
-    userInfo.value = res.data.user
-    return res.data.user
+    const user = validateUser(res)
+    userInfo.value = user
+    return user
   }
 
   const logout = async () => {
@@ -45,6 +59,7 @@ export const useUserStore = defineStore('user', () => {
     login,
     fetchUserInfo,
     logout,
+    clearSession,
     setUserInfo
   }
 })

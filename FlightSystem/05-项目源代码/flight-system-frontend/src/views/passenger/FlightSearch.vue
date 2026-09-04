@@ -21,6 +21,22 @@
       </el-form>
     </el-card>
 
+    <el-card v-loading="weekLoading" class="week-card">
+      <template #header>
+        <div class="card-header">
+          <span>{{ $t('flightSearch.weeklyTitle') }}</span>
+        </div>
+      </template>
+      <FlightWeekBar
+        :items="weekItems"
+        :selected-date="searchForm.date"
+        :lowest-text="$t('flightSearch.lowest')"
+        @select="handleSelectDate"
+        @prev-week="handlePrevWeek"
+        @next-week="handleNextWeek"
+      />
+    </el-card>
+
     <el-card v-loading="loading" class="result-card">
       <template #header>
         <div class="card-header">
@@ -79,12 +95,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { searchFlights } from '@/api/flight'
+import { searchFlights, getWeeklyPrices } from '@/api/flight'
 import { useI18n } from '@/composables/useI18n'
 import { useI18nHelpers } from '@/composables/useI18nHelpers'
+import { getWeekRange, markLowestPrice, addDays } from '@/composables/useWeeklyFlights'
+import FlightWeekBar from '@/components/FlightWeekBar.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -92,6 +110,9 @@ const { formatTime, flightStatusType, flightStatusText } = useI18nHelpers()
 
 const loading = ref(false)
 const flightList = ref([])
+const weekLoading = ref(false)
+const weekItems = ref([])
+const weekCenterDate = ref('')
 
 const airports = [
   { code: 'PEK', city: 'Beijing' },
@@ -168,6 +189,67 @@ const loadFlights = async () => {
   }
 }
 
+let weekPricesRequestId = 0
+
+const loadWeekPrices = async () => {
+  if (!searchForm.origin || !searchForm.destination || !weekCenterDate.value) return
+  if (searchForm.origin === searchForm.destination) return
+
+  const requestId = ++weekPricesRequestId
+  const dates = getWeekRange(weekCenterDate.value)
+  weekLoading.value = true
+  try {
+    const res = await getWeeklyPrices({
+      origin: searchForm.origin,
+      destination: searchForm.destination,
+      startDate: dates[0],
+      endDate: dates[6]
+    })
+    if (requestId !== weekPricesRequestId) return
+    const priceMap = {}
+    res.data.forEach(item => {
+      priceMap[item.date] = item.lowestPrice
+    })
+    const items = dates.map(date => ({
+      date,
+      price: priceMap[date] ?? null
+    }))
+    weekItems.value = markLowestPrice(items)
+  } catch (err) {
+    if (requestId !== weekPricesRequestId) return
+    console.error(err)
+    weekItems.value = markLowestPrice(dates.map(date => ({ date, price: null })))
+  } finally {
+    if (requestId === weekPricesRequestId) {
+      weekLoading.value = false
+    }
+  }
+}
+
+const handleSelectDate = (date) => {
+  searchForm.date = date
+  weekCenterDate.value = date
+  handleSearch()
+}
+
+const handlePrevWeek = () => {
+  weekCenterDate.value = addDays(weekCenterDate.value, -7)
+}
+
+const handleNextWeek = () => {
+  weekCenterDate.value = addDays(weekCenterDate.value, 7)
+}
+
+watch(() => [searchForm.origin, searchForm.destination, weekCenterDate.value], () => {
+  loadWeekPrices()
+})
+
+watch(() => searchForm.date, (date) => {
+  if (date) {
+    weekCenterDate.value = date
+  }
+})
+
 const goBooking = (item, cabin) => {
   if (item.status === 3) {
     ElMessage.warning(t('flightSearch.cancelled'))
@@ -181,9 +263,17 @@ const goBooking = (item, cabin) => {
   router.push(`/passenger/booking/${item.id}?cabin=${cabin}`)
 }
 
+const formatLocalDate = (date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 onMounted(() => {
   const today = new Date()
-  searchForm.date = today.toISOString().split('T')[0]
+  searchForm.date = formatLocalDate(today)
+  weekCenterDate.value = searchForm.date
 })
 </script>
 
@@ -193,6 +283,7 @@ onMounted(() => {
 }
 
 .search-card,
+.week-card,
 .result-card {
   margin-bottom: 20px;
 }

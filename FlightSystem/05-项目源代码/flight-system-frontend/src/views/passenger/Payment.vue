@@ -61,6 +61,7 @@ import { getOrderDetail } from '@/api/booking'
 import { simulatePayment } from '@/api/payment'
 import { useI18n } from '@/composables/useI18n'
 import { useI18nHelpers } from '@/composables/useI18nHelpers'
+import { useGoBack } from '@/composables/useGoBack'
 
 const route = useRoute()
 const router = useRouter()
@@ -105,9 +106,7 @@ const handlePay = async () => {
   }
 }
 
-const goBack = () => {
-  router.back()
-}
+const goBack = useGoBack(`/passenger/order/${orderId}`)
 
 onMounted(() => {
   loadOrder()

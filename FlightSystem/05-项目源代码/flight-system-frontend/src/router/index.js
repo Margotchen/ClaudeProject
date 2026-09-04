@@ -102,10 +102,37 @@ const defaultHomeByRole = {
   passenger: '/passenger/search'
 }
 
+const KNOWN_ROLES = ['passenger', 'service', 'operator']
+
+export function getHomeByRole(roleCode) {
+  return defaultHomeByRole[roleCode] || null
+}
+
+function isKnownRole(roleCode) {
+  return KNOWN_ROLES.includes(roleCode)
+}
+
+function redirectToLogin(next, to, options = {}) {
+  const query = {}
+  if (to.path !== '/login') {
+    query.redirect = to.fullPath
+  }
+  if (options.error) {
+    query.error = options.error
+  }
+  return next({ path: '/login', query, replace: true })
+}
+
 router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
 
   if (to.meta.public) {
+    if (userStore.isLoggedIn && isKnownRole(userStore.roleCode)) {
+      const home = getHomeByRole(userStore.roleCode)
+      if (home && to.path !== home) {
+        return next({ path: home, replace: true })
+      }
+    }
     return next()
   }
 
@@ -113,20 +140,23 @@ router.beforeEach(async (to, from, next) => {
     try {
       await userStore.fetchUserInfo()
     } catch {
-      return next('/login')
+      return redirectToLogin(next, to)
     }
   }
 
-  if (!userStore.isLoggedIn) {
-    return next('/login')
+  if (!userStore.isLoggedIn || !isKnownRole(userStore.roleCode)) {
+    userStore.clearSession?.()
+    return redirectToLogin(next, to, { error: 'role' })
   }
 
   if (to.path === '/') {
-    return next(defaultHomeByRole[userStore.roleCode] || '/passenger/search')
+    const home = getHomeByRole(userStore.roleCode)
+    return next({ path: home, replace: true })
   }
 
   if (to.meta.roles && !to.meta.roles.includes(userStore.roleCode)) {
-    return next('/')
+    const home = getHomeByRole(userStore.roleCode)
+    return next({ path: home, replace: true })
   }
 
   next()

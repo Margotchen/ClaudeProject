@@ -54,40 +54,46 @@ async function initData() {
   // Aircraft
   await Aircraft.bulkCreate([
     { model: 'Airbus A320-200', total_seats: 150, layout: JSON.stringify({ economy: { rows: 25, cols: 6, startRow: 11 }, business: { rows: 4, cols: 4, startRow: 5 }, first: { rows: 4, cols: 4, startRow: 1 } }) },
-    { model: 'Boeing 737-800', total_seats: 160, layout: JSON.stringify({ economy: { rows: 27, cols: 6, startRow: 11 }, business: { rows: 4, cols: 4, startRow: 5 }, first: { rows: 4, cols: 4, startRow: 1 } }) }
+    { model: 'Boeing 737-800', total_seats: 160, layout: JSON.stringify({ economy: { rows: 27, cols: 6, startRow: 11 }, business: { rows: 4, cols: 4, startRow: 5 }, first: { rows: 4, cols: 4, startRow: 1 } }) },
+    { model: 'Airbus A330-300', total_seats: 280, layout: JSON.stringify({ economy: { rows: 40, cols: 8, startRow: 11 }, business: { rows: 6, cols: 6, startRow: 5 }, first: { rows: 4, cols: 4, startRow: 1 } }) }
   ]);
   const aircraftRows = await Aircraft.findAll();
   const aircraftIds = aircraftRows.map(a => a.id);
 
-  // Flights
-  await Flight.bulkCreate([
-    { flight_no: 'CA1201', departure_airport_id: airportMap['PEK'], arrival_airport_id: airportMap['SHA'], planned_duration: 135 },
-    { flight_no: 'CA1202', departure_airport_id: airportMap['SHA'], arrival_airport_id: airportMap['PEK'], planned_duration: 140 },
-    { flight_no: 'MU5301', departure_airport_id: airportMap['SHA'], arrival_airport_id: airportMap['CAN'], planned_duration: 130 },
-    { flight_no: 'MU5302', departure_airport_id: airportMap['CAN'], arrival_airport_id: airportMap['SHA'], planned_duration: 130 },
-    { flight_no: 'CZ3001', departure_airport_id: airportMap['CAN'], arrival_airport_id: airportMap['PEK'], planned_duration: 195 },
-    { flight_no: 'CZ3002', departure_airport_id: airportMap['PEK'], arrival_airport_id: airportMap['CAN'], planned_duration: 190 },
-    { flight_no: 'ZH9001', departure_airport_id: airportMap['SZX'], arrival_airport_id: airportMap['TFU'], planned_duration: 155 },
-    { flight_no: 'ZH9002', departure_airport_id: airportMap['TFU'], arrival_airport_id: airportMap['SZX'], planned_duration: 150 }
-  ]);
+  // Flights (16 routes, 2 flights per city pair)
+  const flightDefinitions = [
+    { flight_no: 'CA1201', from: 'PEK', to: 'SHA', hour: 8, minute: 0, duration: 135 },
+    { flight_no: 'CA1203', from: 'PEK', to: 'SHA', hour: 14, minute: 30, duration: 135 },
+    { flight_no: 'CA1202', from: 'SHA', to: 'PEK', hour: 11, minute: 0, duration: 140 },
+    { flight_no: 'CA1204', from: 'SHA', to: 'PEK', hour: 18, minute: 0, duration: 140 },
+    { flight_no: 'MU5301', from: 'SHA', to: 'CAN', hour: 9, minute: 30, duration: 130 },
+    { flight_no: 'MU5303', from: 'SHA', to: 'CAN', hour: 16, minute: 0, duration: 130 },
+    { flight_no: 'MU5302', from: 'CAN', to: 'SHA', hour: 13, minute: 0, duration: 130 },
+    { flight_no: 'MU5304', from: 'CAN', to: 'SHA', hour: 19, minute: 30, duration: 130 },
+    { flight_no: 'CZ3001', from: 'CAN', to: 'PEK', hour: 14, minute: 30, duration: 195 },
+    { flight_no: 'CZ3003', from: 'CAN', to: 'PEK', hour: 20, minute: 0, duration: 195 },
+    { flight_no: 'CZ3002', from: 'PEK', to: 'CAN', hour: 8, minute: 30, duration: 190 },
+    { flight_no: 'CZ3004', from: 'PEK', to: 'CAN', hour: 15, minute: 0, duration: 190 },
+    { flight_no: 'ZH9001', from: 'SZX', to: 'TFU', hour: 10, minute: 0, duration: 155 },
+    { flight_no: 'ZH9003', from: 'SZX', to: 'TFU', hour: 17, minute: 0, duration: 155 },
+    { flight_no: 'ZH9002', from: 'TFU', to: 'SZX', hour: 15, minute: 0, duration: 150 },
+    { flight_no: 'ZH9004', from: 'TFU', to: 'SZX', hour: 21, minute: 0, duration: 150 }
+  ];
+
+  await Flight.bulkCreate(flightDefinitions.map(f => ({
+    flight_no: f.flight_no,
+    departure_airport_id: airportMap[f.from],
+    arrival_airport_id: airportMap[f.to],
+    planned_duration: f.duration
+  })));
+
   const flightRows = await Flight.findAll();
   const flightMap = {};
   flightRows.forEach(f => { flightMap[f.flight_no] = f.id; });
 
-  // Schedules for next 7 days
+  // Schedules for the next 14 days
   const seatInventories = [];
   const flightStatuses = [];
-
-  const baseTimes = {
-    'CA1201': { hour: 8, minute: 0 },
-    'CA1202': { hour: 11, minute: 0 },
-    'MU5301': { hour: 9, minute: 30 },
-    'MU5302': { hour: 13, minute: 0 },
-    'CZ3001': { hour: 14, minute: 30 },
-    'CZ3002': { hour: 8, minute: 30 },
-    'ZH9001': { hour: 10, minute: 0 },
-    'ZH9002': { hour: 15, minute: 0 }
-  };
 
   const cabinConfigs = {
     economy: { seats: 120, priceFactor: 1 },
@@ -95,20 +101,40 @@ async function initData() {
     first: { seats: 10, priceFactor: 5 }
   };
 
-  for (const flight of flightRows) {
-    const time = baseTimes[flight.flight_no];
-    for (let i = 0; i < 7; i++) {
+  const routeBasePrices = {
+    'PEK-SHA': 480,
+    'SHA-PEK': 480,
+    'SHA-CAN': 550,
+    'CAN-SHA': 550,
+    'CAN-PEK': 700,
+    'PEK-CAN': 700,
+    'SZX-TFU': 420,
+    'TFU-SZX': 420
+  };
+
+  // Track flight index per route for deterministic price variation
+  const routeFlightIndex = {};
+
+  let scheduleIndex = 0;
+  for (const flightDef of flightDefinitions) {
+    const routeKey = `${flightDef.from}-${flightDef.to}`;
+    routeFlightIndex[routeKey] = (routeFlightIndex[routeKey] || 0);
+    const flightIndex = routeFlightIndex[routeKey]++;
+
+    for (let i = 0; i < 14; i++) {
       const date = addDays(i);
       const flightDate = formatDate(date);
       const departureTime = new Date(date);
-      departureTime.setHours(time.hour, time.minute, 0, 0);
-      const arrivalTime = new Date(departureTime.getTime() + flight.planned_duration * 60000);
+      departureTime.setHours(flightDef.hour, flightDef.minute, 0, 0);
+      const arrivalTime = new Date(departureTime.getTime() + flightDef.duration * 60000);
 
-      const aircraftId = aircraftIds[i % aircraftIds.length];
-      const basePrice = 500 + Math.floor(Math.random() * 300);
+      const aircraftId = aircraftIds[scheduleIndex % aircraftIds.length];
+      const dayOfWeek = date.getDay();
+      const routeBase = routeBasePrices[routeKey] || 500;
+      const basePrice = routeBase + (i * 12) + (dayOfWeek * 8) + (flightIndex * 30);
 
       const schedule = await FlightSchedule.create({
-        flight_id: flightMap[flight.flight_no],
+        flight_id: flightMap[flightDef.flight_no],
         aircraft_id: aircraftId,
         flight_date: flightDate,
         departure_time: departureTime,
@@ -134,6 +160,8 @@ async function initData() {
         status: 1,
         delay_minutes: 0
       });
+
+      scheduleIndex++;
     }
   }
 
