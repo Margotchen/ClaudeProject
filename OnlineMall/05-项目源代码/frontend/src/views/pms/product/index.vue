@@ -18,9 +18,13 @@ import type { PmsProduct, ProductQueryParam } from '@/types/product'
 import type { ElCascaderDataVo, ElSelectDataVo } from '@/types/common'
 import type { PmsSkuStock } from '@/types/skuStock'
 import type { PmsProductAttribute } from '@/types/productAttr'
+import { useCurrentRole } from '@/utils/role'
 
 // 获取路由
 const router = useRouter()
+
+// 当前角色
+const { isPlatformAdmin } = useCurrentRole()
 
 // 列表查询参数
 const listQuery = ref<ProductQueryParam>({
@@ -433,6 +437,9 @@ const verifyStatusFilter = (value: number) => {
         <el-table-column type="selection" width="60" align="center"></el-table-column>
         <el-table-column label="编号" width="100" align="center">
           <template #default="scope">{{ scope.row.id }}</template>
+        </el-table-column>
+        <el-table-column v-if="isPlatformAdmin()" label="所属店铺" width="120" align="center">
+          <template #default="scope">{{ scope.row.shopId }}</template>
         </el-table-column>
         <el-table-column label="商品图片" width="120" align="center">
           <template #default="scope"><img style="height: 80px" :src="scope.row.pic"></template>

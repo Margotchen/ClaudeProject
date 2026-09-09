@@ -67,6 +67,8 @@ const closeOrderData = ref({
 
 // 物流对话框可见性
 const logisticsDialogVisible = ref(false)
+// 当前查看物流的订单ID
+const logisticsOrderId = ref<number>()
 
 // 订单状态选项（1-待支付 2-已支付 3-待发货 4-已发货 5-已收货 6-已完成 7-已取消 8-售后中）
 const statusOptions = [
@@ -242,8 +244,8 @@ const handleComplete = async (index: number, row: OmsOrder) => {
 
 // 处理查看物流
 const handleViewLogistics = (index: number, row: OmsOrder) => {
+  logisticsOrderId.value = row.id
   logisticsDialogVisible.value = true
-  console.log(index, row)
 }
 
 // 处理删除订单
@@ -472,7 +474,7 @@ const deleteOrderFn = async (ids: number[]) => {
         </span>
       </template>
     </el-dialog>
-    <logistics-dialog v-model="logisticsDialogVisible"></logistics-dialog>
+    <logistics-dialog v-model="logisticsDialogVisible" :order-id="logisticsOrderId"></logistics-dialog>
   </div>
 </template>
 

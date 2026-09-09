@@ -54,6 +54,8 @@ const markInfo = ref({ id: 0, note: '' })
 
 // 物流对话框可见性
 const logisticsDialogVisible = ref(false)
+// 当前查看物流的订单ID
+const logisticsOrderId = ref<number>()
 
 // 格式化空值
 const formatNull = (value: string | undefined) => {
@@ -354,6 +356,7 @@ const handleDeleteOrder = async () => {
 
 // 显示物流对话框
 const showLogisticsDialog = () => {
+  logisticsOrderId.value = order.value.id
   logisticsDialogVisible.value = true
 }
 
@@ -690,7 +693,7 @@ const showLogisticsDialog = () => {
         </span>
       </template>
     </el-dialog>
-    <logistics-dialog v-model="logisticsDialogVisible"></logistics-dialog>
+    <logistics-dialog v-model="logisticsDialogVisible" :order-id="logisticsOrderId"></logistics-dialog>
   </div>
 </template>
 

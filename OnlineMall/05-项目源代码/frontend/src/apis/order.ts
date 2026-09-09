@@ -139,3 +139,13 @@ export function orderCompleteAPI(params: { ids: string }) {
     params: params,
   })
 }
+
+/**
+ * 查询订单物流轨迹
+ */
+export function getOrderLogisticsTraceAPI(orderId: number) {
+  return http<{ id: number; orderId: number; content: string; createTime: string }[]>({
+    url: `/order/logistics/trace/${orderId}`,
+    method: 'get',
+  })
+}

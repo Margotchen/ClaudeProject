@@ -4,6 +4,7 @@ import type {
   OmsOrderReturnApplyResult,
   OmsUpdateStatusParam,
   ReturnApplyQueryParam,
+  ReturnApplyHandleParam,
 } from '@/types/returnApply'
 import http from '@/utils/http'
 
@@ -47,5 +48,16 @@ export function getReturnApplyByIdAPI(id: number) {
   return http<OmsOrderReturnApplyResult>({
     url: '/returnApply/' + id,
     method: 'get',
+  })
+}
+
+/**
+ * 审核售后申请（通过/驳回）
+ */
+export function returnApplyHandleAPI(data: ReturnApplyHandleParam) {
+  return http({
+    url: '/returnApply/handle',
+    method: 'post',
+    data: data,
   })
 }

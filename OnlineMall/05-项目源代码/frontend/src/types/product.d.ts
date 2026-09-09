@@ -79,6 +79,8 @@ export type PmsProduct = {
   brandName?: string
   /** 商品分类名称 */
   productCategoryName?: string
+  /** 所属店铺ID */
+  shopId?: number
   /** 商品描述 */
   description?: string
   /** 详情描述 */

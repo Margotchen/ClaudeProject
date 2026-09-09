@@ -2,40 +2,24 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getReturnApplyByIdAPI, returnApplyUpdateStatusAPI } from '@/apis/returnApply'
-import { getCompanyAddressListAPI } from '@/apis/companyAddress'
+import { getReturnApplyByIdAPI, returnApplyHandleAPI } from '@/apis/returnApply'
 import { formatDateTime } from '@/utils/datetime'
-import type { OmsOrderReturnApply, OmsUpdateStatusParam } from '@/types/returnApply'
-import type { OmsCompanyAddress } from '@/types/companyAddress'
-
-// 默认状态修改参数
-const defaultUpdateStatusParam = {
-  id: 0,
-  companyAddressId: 0,
-  handleMan: 'admin',
-  handleNote: '',
-  receiveMan: 'admin',
-  receiveNote: '',
-  returnAmount: 0,
-  status: 0
-}
+import type { OmsOrderReturnApply, ReturnApplyHandleParam } from '@/types/returnApply'
 
 // 路由相关
 const route = useRoute()
 const router = useRouter()
 
-// 当前退货申请ID
+// 当前售后申请ID
 const id = ref()
-// 当前退货申请
+// 当前售后申请
 const orderReturnApply = ref({} as OmsOrderReturnApply)
 // 凭证图片
 const proofPics = ref<string[]>([])
-// 退货商品列表
+// 售后商品列表
 const productList = ref()
-// 公司收货地址列表
-const companyAddressList = ref<OmsCompanyAddress[]>([])
-// 修改退货申请状态参数
-const updateStatusParam = ref<OmsUpdateStatusParam>(Object.assign({}, defaultUpdateStatusParam))
+// 处理意见
+const handleRemark = ref('')
 // 获取详情
 const getDetail = async () => {
   const res = await getReturnApplyByIdAPI(id.value)
@@ -45,28 +29,13 @@ const getDetail = async () => {
   if (orderReturnApply.value.proofPics) {
     proofPics.value = orderReturnApply.value.proofPics.split(",")
   }
-  // 退货中和完成
-  if (orderReturnApply.value.status === 1 || orderReturnApply.value.status === 2) {
-    updateStatusParam.value.returnAmount = orderReturnApply.value.returnAmount
-    updateStatusParam.value.companyAddressId = orderReturnApply.value.companyAddressId
-  }
-}
-// 获取公司地址列表
-const getCompanyAddressList = async () => {
-  const res = await getCompanyAddressListAPI()
-  companyAddressList.value = res.data
-  // 获取默认收货地址
-  const defaultAddress = companyAddressList.value.find(item => item.receiveStatus === 1)
-  if (defaultAddress) {
-    updateStatusParam.value.companyAddressId = defaultAddress.id!
-  }
+  handleRemark.value = orderReturnApply.value.handleRemark || ''
 }
 
 // 组件挂载
 onMounted(() => {
   id.value = route.query.id
   getDetail()
-  getCompanyAddressList()
 })
 
 // 计算属性
@@ -78,35 +47,23 @@ const totalAmount = computed(() => {
   }
 })
 
-// 当前收货地址
-const currentAddress = computed(() => {
-  const idValue = updateStatusParam.value.companyAddressId
-  if (!companyAddressList.value) return undefined
-  return companyAddressList.value.find(item => item.id === idValue)
-})
-
-// 格式化状态
+// 格式化状态（0-待处理 1-已通过 2-已完成 3-已驳回）
 const formatStatus = (status: number) => {
   if (status === 0) {
     return "待处理"
   } else if (status === 1) {
-    return "退货中"
+    return "已通过"
   } else if (status === 2) {
     return "已完成"
   } else {
-    return "已拒绝"
+    return "已驳回"
   }
 }
 
-// 格式化地区
-const formatRegion = (address: OmsCompanyAddress | undefined) => {
-  if (!address) return ''
-  let str = address.province
-  if (address.city) {
-    str += "  " + address.city
-  }
-  str += "  " + address.region
-  return str
+// 格式化售后类型
+const formatReturnType = (returnType?: number) => {
+  const map: Record<number, string> = { 1: '退货', 2: '退款' }
+  return map[returnType || 1] || '退货'
 }
 
 // 查看订单详情
@@ -114,15 +71,19 @@ const handleViewOrder = () => {
   router.push({ path: '/oms/orderDetail', query: { id: orderReturnApply.value.orderId } })
 }
 
-// 更新状态
+// 审核售后申请（通过/驳回）
 const handleUpdateStatus = async (status: number) => {
-  updateStatusParam.value.status = status
   await ElMessageBox.confirm('是否要进行此操作?', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
   })
-  await returnApplyUpdateStatusAPI(id.value, updateStatusParam.value)
+  const param: ReturnApplyHandleParam = {
+    applyId: Number(id.value),
+    status: status,
+    handleRemark: handleRemark.value,
+  }
+  await returnApplyHandleAPI(param)
   ElMessage({
     type: 'success',
     message: '操作成功!',
@@ -183,6 +144,10 @@ const handleUpdateStatus = async (status: number) => {
           <el-col class="form-border font-small" :span="18">{{ formatStatus(orderReturnApply.status) }}</el-col>
         </el-row>
         <el-row>
+          <el-col class="form-border form-left-bg font-small" :span="6">售后类型</el-col>
+          <el-col class="form-border font-small" :span="18">{{ formatReturnType(orderReturnApply.returnType) }}</el-col>
+        </el-row>
+        <el-row>
           <el-col :span="6" class="form-border form-left-bg font-small" style="height:50px;line-height:30px">订单编号
           </el-col>
           <el-col class="form-border font-small" :span="18" style="height:50px">
@@ -222,52 +187,6 @@ const handleUpdateStatus = async (status: number) => {
           </el-col>
         </el-row>
       </div>
-      <div class="form-container-border">
-        <el-row>
-          <el-col class="form-border form-left-bg font-small" :span="6">订单金额</el-col>
-          <el-col class="form-border font-small" :span="18">￥{{ totalAmount }}</el-col>
-        </el-row>
-        <el-row>
-          <el-col class="form-border form-left-bg font-small" :span="6" style="height:52px;line-height:32px">确认退款金额
-          </el-col>
-          <el-col class="form-border font-small" style="height:52px" :span="18">
-            ￥
-            <el-input size="small" v-model="updateStatusParam.returnAmount" :disabled="orderReturnApply.status !== 0"
-              style="width:200px;margin-left: 10px"></el-input>
-          </el-col>
-        </el-row>
-        <div v-show="orderReturnApply.status !== 3">
-          <el-row>
-            <el-col class="form-border form-left-bg font-small" :span="6" style="height:52px;line-height:32px">选择收货点
-            </el-col>
-            <el-col class="form-border font-small" style="height:52px" :span="18">
-              <el-select size="small" style="width:200px" :disabled="orderReturnApply.status !== 0"
-                v-model="updateStatusParam.companyAddressId">
-                <el-option v-for="address in companyAddressList" :key="address.id" :value="address.id!"
-                  :label="address.addressName">
-                </el-option>
-              </el-select>
-            </el-col>
-          </el-row>
-          <el-row>
-            <el-col class="form-border form-left-bg font-small" :span="6">收货人姓名</el-col>
-            <el-col class="form-border font-small" :span="18">{{ currentAddress?.name }}</el-col>
-          </el-row>
-          <el-row>
-            <el-col class="form-border form-left-bg font-small" :span="6">所在区域</el-col>
-            <el-col class="form-border font-small" :span="18">{{ formatRegion(currentAddress)
-              }}</el-col>
-          </el-row>
-          <el-row>
-            <el-col class="form-border form-left-bg font-small" :span="6">详细地址</el-col>
-            <el-col class="form-border font-small" :span="18">{{ currentAddress?.detailAddress }}</el-col>
-          </el-row>
-          <el-row>
-            <el-col class="form-border form-left-bg font-small" :span="6">联系电话</el-col>
-            <el-col class="form-border font-small" :span="18">{{ currentAddress?.phone }}</el-col>
-          </el-row>
-        </div>
-      </div>
       <div class="form-container-border" v-show="orderReturnApply.status !== 0">
         <el-row>
           <el-col class="form-border form-left-bg font-small" :span="6">处理人员</el-col>
@@ -278,50 +197,27 @@ const handleUpdateStatus = async (status: number) => {
           <el-col class="form-border font-small" :span="18">{{ formatDateTime(orderReturnApply.handleTime) }}</el-col>
         </el-row>
         <el-row>
-          <el-col class="form-border form-left-bg font-small" :span="6">处理备注</el-col>
-          <el-col class="form-border font-small" :span="18">{{ orderReturnApply.handleNote }}</el-col>
-        </el-row>
-      </div>
-      <div class="form-container-border" v-show="orderReturnApply.status === 2">
-        <el-row>
-          <el-col class="form-border form-left-bg font-small" :span="6">收货人员</el-col>
-          <el-col class="form-border font-small" :span="18">{{ orderReturnApply.receiveMan }}</el-col>
-        </el-row>
-        <el-row>
-          <el-col class="form-border form-left-bg font-small" :span="6">收货时间</el-col>
-          <el-col class="form-border font-small" :span="18">{{ formatDateTime(orderReturnApply.receiveTime) }}</el-col>
-        </el-row>
-        <el-row>
-          <el-col class="form-border form-left-bg font-small" :span="6">收货备注</el-col>
-          <el-col class="form-border font-small" :span="18">{{ orderReturnApply.receiveNote }}</el-col>
+          <el-col class="form-border form-left-bg font-small" :span="6">处理意见</el-col>
+          <el-col class="form-border font-small" :span="18">{{ orderReturnApply.handleRemark || '无' }}</el-col>
         </el-row>
       </div>
       <div class="form-container-border" v-show="orderReturnApply.status === 0">
         <el-row>
           <el-col class="form-border form-left-bg font-small" :span="6"
-            style="height:52px;line-height:32px">处理备注</el-col>
+            style="height:52px;line-height:32px">处理意见</el-col>
           <el-col class="form-border font-small" :span="18">
-            <el-input size="small" v-model="updateStatusParam.handleNote"
-              style="width:200px;margin-left: 10px"></el-input>
-          </el-col>
-        </el-row>
-      </div>
-      <div class="form-container-border" v-show="orderReturnApply.status === 1">
-        <el-row>
-          <el-col class="form-border form-left-bg font-small" :span="6"
-            style="height:52px;line-height:32px">收货备注</el-col>
-          <el-col class="form-border font-small" :span="18">
-            <el-input size="small" v-model="updateStatusParam.receiveNote"
-              style="width:200px;margin-left: 10px"></el-input>
+            <el-input size="small" v-model="handleRemark"
+              style="width:300px;margin-left: 10px"></el-input>
           </el-col>
         </el-row>
       </div>
       <div style="margin-top:15px;text-align: center" v-show="orderReturnApply.status === 0">
-        <el-button type="primary" size="small" @click="handleUpdateStatus(1)">确认退货</el-button>
-        <el-button type="danger" size="small" @click="handleUpdateStatus(3)">拒绝退货</el-button>
-      </div>
-      <div style="margin-top:15px;text-align: center" v-show="orderReturnApply.status === 1">
-        <el-button type="primary" size="small" @click="handleUpdateStatus(2)">确认收货</el-button>
+        <el-button type="primary" size="small" @click="handleUpdateStatus(1)">
+          同意{{ orderReturnApply.returnType === 2 ? '退款' : '退货' }}
+        </el-button>
+        <el-button type="danger" size="small" @click="handleUpdateStatus(2)">
+          拒绝{{ orderReturnApply.returnType === 2 ? '退款' : '退货' }}
+        </el-button>
       </div>
     </el-card>
   </div>

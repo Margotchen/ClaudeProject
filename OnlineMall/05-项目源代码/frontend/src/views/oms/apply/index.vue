@@ -10,14 +10,14 @@ import type { OmsOrderReturnApply, ReturnApplyQueryParam } from '@/types/returnA
 // 获取路由对象
 const router = useRouter()
 
-// 默认处理状态
+// 默认处理状态（0-待处理 1-已通过 2-已完成 3-已驳回）
 const defaultStatusOptions = [
   {
     label: '待处理',
     value: 0
   },
   {
-    label: '退货中',
+    label: '已通过',
     value: 1
   },
   {
@@ -25,7 +25,7 @@ const defaultStatusOptions = [
     value: 2
   },
   {
-    label: '已拒绝',
+    label: '已驳回',
     value: 3
   }
 ]
@@ -72,6 +72,12 @@ const operateOptions = ref([
 // 格式化状态
 const formatStatus = (status: number) => {
   return defaultStatusOptions.find(item => item.value === status)?.label
+}
+
+// 格式化售后类型
+const formatReturnType = (returnType?: number) => {
+  const map: Record<number, string> = { 1: '退货', 2: '退款' }
+  return map[returnType || 1] || '退货'
 }
 
 // 格式化退款金额
@@ -199,6 +205,9 @@ const handleCurrentChange = (val: number) => {
         </el-table-column>
         <el-table-column label="申请时间" width="180" align="center">
           <template #default="scope">{{ formatDateTime(scope.row.createTime) }}</template>
+        </el-table-column>
+        <el-table-column label="售后类型" width="100" align="center">
+          <template #default="scope">{{ formatReturnType(scope.row.returnType) }}</template>
         </el-table-column>
         <el-table-column label="用户账号" align="center">
           <template #default="scope">{{ scope.row.memberUsername }}</template>

@@ -57,6 +57,12 @@ export type OmsOrderReturnApply = {
   receiveTime: string
   /** 收货备注 */
   receiveNote: string
+  /** 售后类型：1->退货；2->退款 */
+  returnType?: number
+  /** 处理意见 */
+  handleRemark?: string
+  /** 售后前订单状态 */
+  preStatus?: number
 }
 
 /** 退货申请查询参数 */
@@ -99,4 +105,14 @@ export type OmsUpdateStatusParam = {
   receiveMan: string
   /** 申请状态：1->退货中；2->已完成；3->已拒绝 */
   status: number
+}
+
+/** 售后申请审核参数 */
+export type ReturnApplyHandleParam = {
+  /** 售后申请ID */
+  applyId: number
+  /** 审核状态：1->通过；2->驳回 */
+  status: number
+  /** 处理意见 */
+  handleRemark?: string
 }
