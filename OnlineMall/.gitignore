@@ -40,3 +40,7 @@ temp/
 # Backup git directories from cloned submodules
 05-项目源代码/backend.git.bak/
 05-项目源代码/frontend.git.bak/
+
+# Local environment setup binaries
+openjdk-17_windows-x64_bin.zip
+apache-maven-3.9.16-bin.tar.gz
