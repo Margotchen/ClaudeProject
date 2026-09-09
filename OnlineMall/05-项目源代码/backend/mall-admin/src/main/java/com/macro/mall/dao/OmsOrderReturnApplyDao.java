@@ -21,4 +21,17 @@ public interface OmsOrderReturnApplyDao {
      * 获取申请详情
      */
     OmsOrderReturnApplyResult getDetail(@Param("id")Long id);
+
+    /**
+     * 插入售后申请（包含售后类型）
+     */
+    int insertReturnApply(@Param("apply") OmsOrderReturnApply apply);
+
+    /**
+     * 根据主键更新售后申请状态与处理意见
+     */
+    int updateStatusById(@Param("id") Long id,
+                         @Param("status") Integer status,
+                         @Param("handleMan") String handleMan,
+                         @Param("handleRemark") String handleRemark);
 }

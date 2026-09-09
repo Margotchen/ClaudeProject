@@ -11,6 +11,9 @@ public class OmsOrderReturnApply implements Serializable {
     @Schema(title = "订单id")
     private Long orderId;
 
+    @Schema(title = "售后类型：1-退货 2-退款")
+    private Integer returnType;
+
     @Schema(title = "收货地址表id")
     private Long companyAddressId;
 
@@ -77,6 +80,12 @@ public class OmsOrderReturnApply implements Serializable {
     @Schema(title = "处理人员")
     private String handleMan;
 
+    @Schema(title = "处理意见")
+    private String handleRemark;
+
+    @Schema(title = "售后前订单状态")
+    private Integer preStatus;
+
     @Schema(title = "收货人")
     private String receiveMan;
 
@@ -102,6 +111,14 @@ public class OmsOrderReturnApply implements Serializable {
 
     public void setOrderId(Long orderId) {
         this.orderId = orderId;
+    }
+
+    public Integer getReturnType() {
+        return returnType;
+    }
+
+    public void setReturnType(Integer returnType) {
+        this.returnType = returnType;
     }
 
     public Long getCompanyAddressId() {
@@ -280,6 +297,22 @@ public class OmsOrderReturnApply implements Serializable {
         this.handleMan = handleMan;
     }
 
+    public String getHandleRemark() {
+        return handleRemark;
+    }
+
+    public void setHandleRemark(String handleRemark) {
+        this.handleRemark = handleRemark;
+    }
+
+    public Integer getPreStatus() {
+        return preStatus;
+    }
+
+    public void setPreStatus(Integer preStatus) {
+        this.preStatus = preStatus;
+    }
+
     public String getReceiveMan() {
         return receiveMan;
     }
@@ -312,6 +345,7 @@ public class OmsOrderReturnApply implements Serializable {
         sb.append("Hash = ").append(hashCode());
         sb.append(", id=").append(id);
         sb.append(", orderId=").append(orderId);
+        sb.append(", returnType=").append(returnType);
         sb.append(", companyAddressId=").append(companyAddressId);
         sb.append(", productId=").append(productId);
         sb.append(", orderSn=").append(orderSn);
@@ -334,6 +368,8 @@ public class OmsOrderReturnApply implements Serializable {
         sb.append(", proofPics=").append(proofPics);
         sb.append(", handleNote=").append(handleNote);
         sb.append(", handleMan=").append(handleMan);
+        sb.append(", handleRemark=").append(handleRemark);
+        sb.append(", preStatus=").append(preStatus);
         sb.append(", receiveMan=").append(receiveMan);
         sb.append(", receiveTime=").append(receiveTime);
         sb.append(", receiveNote=").append(receiveNote);

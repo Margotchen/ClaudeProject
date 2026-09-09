@@ -3,7 +3,9 @@ package com.macro.mall.controller;
 import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.dto.*;
+import com.macro.mall.mapper.OmsOrderLogisticsTraceMapper;
 import com.macro.mall.model.OmsOrder;
+import com.macro.mall.model.OmsOrderLogisticsTrace;
 import com.macro.mall.service.OmsOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +25,8 @@ import java.util.List;
 public class OmsOrderController {
     @Autowired
     private OmsOrderService orderService;
+    @Autowired
+    private OmsOrderLogisticsTraceMapper logisticsTraceMapper;
 
     @Operation(summary = "查询订单")
     @RequestMapping(value = "/list", method = RequestMethod.GET)
@@ -152,5 +156,13 @@ public class OmsOrderController {
             return CommonResult.success(count);
         }
         return CommonResult.failed();
+    }
+
+    @Operation(summary = "查询物流轨迹")
+    @RequestMapping(value = "/logistics/trace/{orderId}", method = RequestMethod.GET)
+    @ResponseBody
+    public CommonResult<List<OmsOrderLogisticsTrace>> logisticsTrace(@PathVariable Long orderId) {
+        List<OmsOrderLogisticsTrace> list = logisticsTraceMapper.selectByOrderId(orderId);
+        return CommonResult.success(list);
     }
 }

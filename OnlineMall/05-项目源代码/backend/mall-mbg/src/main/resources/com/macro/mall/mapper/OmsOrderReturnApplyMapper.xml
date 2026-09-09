@@ -4,6 +4,7 @@
   <resultMap id="BaseResultMap" type="com.macro.mall.model.OmsOrderReturnApply">
     <id column="id" jdbcType="BIGINT" property="id" />
     <result column="order_id" jdbcType="BIGINT" property="orderId" />
+    <result column="return_type" jdbcType="INTEGER" property="returnType" />
     <result column="company_address_id" jdbcType="BIGINT" property="companyAddressId" />
     <result column="product_id" jdbcType="BIGINT" property="productId" />
     <result column="order_sn" jdbcType="VARCHAR" property="orderSn" />
@@ -26,6 +27,8 @@
     <result column="proof_pics" jdbcType="VARCHAR" property="proofPics" />
     <result column="handle_note" jdbcType="VARCHAR" property="handleNote" />
     <result column="handle_man" jdbcType="VARCHAR" property="handleMan" />
+    <result column="handle_remark" jdbcType="VARCHAR" property="handleRemark" />
+    <result column="pre_status" jdbcType="INTEGER" property="preStatus" />
     <result column="receive_man" jdbcType="VARCHAR" property="receiveMan" />
     <result column="receive_time" jdbcType="TIMESTAMP" property="receiveTime" />
     <result column="receive_note" jdbcType="VARCHAR" property="receiveNote" />
@@ -89,10 +92,11 @@
     </where>
   </sql>
   <sql id="Base_Column_List">
-    id, order_id, company_address_id, product_id, order_sn, create_time, member_username, 
-    return_amount, return_name, return_phone, status, handle_time, product_pic, product_name, 
-    product_brand, product_attr, product_count, product_price, product_real_price, reason, 
-    description, proof_pics, handle_note, handle_man, receive_man, receive_time, receive_note
+    id, order_id, return_type, company_address_id, product_id, order_sn, create_time, member_username,
+    return_amount, return_name, return_phone, status, handle_time, product_pic, product_name,
+    product_brand, product_attr, product_count, product_price, product_real_price, reason,
+    description, proof_pics, handle_note, handle_man, handle_remark, pre_status, receive_man,
+    receive_time, receive_note
   </sql>
   <select id="selectByExample" parameterType="com.macro.mall.model.OmsOrderReturnApplyExample" resultMap="BaseResultMap">
     select

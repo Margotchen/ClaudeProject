@@ -154,3 +154,67 @@ UPDATE `oms_order_operate_history` SET `order_status` = 3 WHERE `order_status` =
 UPDATE `oms_order_operate_history` SET `order_status` = 4 WHERE `order_status` = 2;
 UPDATE `oms_order_operate_history` SET `order_status` = 6 WHERE `order_status` = 3;
 UPDATE `oms_order_operate_history` SET `order_status` = 7 WHERE `order_status` IN (4, 5);
+
+-- ============================================
+-- 阶段 4：物流与售后模块改造
+-- ============================================
+
+-- 1. 物流轨迹表（发货后写入模拟轨迹）
+CREATE TABLE IF NOT EXISTS `oms_order_logistics_trace` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `order_id` bigint NOT NULL COMMENT '订单ID',
+  `content` varchar(500) NOT NULL COMMENT '轨迹内容',
+  `create_time` datetime DEFAULT NULL COMMENT '轨迹时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_order_id` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='物流轨迹表';
+
+-- 2. 扩展售后申请表
+SET @sql = (
+    SELECT IF(
+        COUNT(*) = 0,
+        'ALTER TABLE `oms_order_return_apply` ADD COLUMN `return_type` int DEFAULT 1 COMMENT "售后类型：1-退货 2-退款" AFTER `order_id`',
+        'SELECT 1'
+    )
+    FROM `INFORMATION_SCHEMA`.`COLUMNS`
+    WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'oms_order_return_apply' AND `COLUMN_NAME` = 'return_type'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+    SELECT IF(
+        COUNT(*) = 0,
+        'ALTER TABLE `oms_order_return_apply` ADD COLUMN `handle_remark` varchar(500) DEFAULT NULL COMMENT "处理意见" AFTER `handle_man`',
+        'SELECT 1'
+    )
+    FROM `INFORMATION_SCHEMA`.`COLUMNS`
+    WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'oms_order_return_apply' AND `COLUMN_NAME` = 'handle_remark'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+    SELECT IF(
+        COUNT(*) = 0,
+        'ALTER TABLE `oms_order_return_apply` ADD COLUMN `pre_status` int DEFAULT NULL COMMENT "售后前订单状态" AFTER `handle_remark`',
+        'SELECT 1'
+    )
+    FROM `INFORMATION_SCHEMA`.`COLUMNS`
+    WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'oms_order_return_apply' AND `COLUMN_NAME` = 'pre_status'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 3. 售后凭证图片表
+CREATE TABLE IF NOT EXISTS `oms_return_apply_image` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `apply_id` bigint NOT NULL COMMENT '售后申请ID',
+  `url` varchar(500) NOT NULL COMMENT '图片URL',
+  `create_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_apply_id` (`apply_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='售后申请凭证图片表';

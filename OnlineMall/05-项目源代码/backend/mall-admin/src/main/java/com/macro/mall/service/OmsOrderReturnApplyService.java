@@ -1,6 +1,8 @@
 package com.macro.mall.service;
 
 import com.macro.mall.dto.OmsOrderReturnApplyResult;
+import com.macro.mall.dto.OmsReturnApplyHandleParam;
+import com.macro.mall.dto.OmsReturnApplyParam;
 import com.macro.mall.dto.OmsReturnApplyQueryParam;
 import com.macro.mall.dto.OmsUpdateStatusParam;
 import com.macro.mall.model.OmsOrderReturnApply;
@@ -31,4 +33,14 @@ public interface OmsOrderReturnApplyService {
      * 获取指定申请详情
      */
     OmsOrderReturnApplyResult getItem(Long id);
+
+    /**
+     * 用户发起售后申请
+     */
+    int create(OmsReturnApplyParam param);
+
+    /**
+     * 商家审核售后申请
+     */
+    int handle(OmsReturnApplyHandleParam param);
 }

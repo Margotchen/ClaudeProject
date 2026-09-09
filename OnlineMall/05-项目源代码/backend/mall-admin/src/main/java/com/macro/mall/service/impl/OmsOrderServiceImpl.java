@@ -4,11 +4,13 @@ import com.github.pagehelper.PageHelper;
 import com.macro.mall.dao.OmsOrderDao;
 import com.macro.mall.dao.OmsOrderOperateHistoryDao;
 import com.macro.mall.dto.*;
+import com.macro.mall.mapper.OmsOrderLogisticsTraceMapper;
 import com.macro.mall.mapper.OmsOrderMapper;
 import com.macro.mall.mapper.OmsOrderOperateHistoryMapper;
 import com.macro.mall.constant.OmsOrderStatus;
 import com.macro.mall.model.OmsOrder;
 import com.macro.mall.model.OmsOrderExample;
+import com.macro.mall.model.OmsOrderLogisticsTrace;
 import com.macro.mall.model.OmsOrderOperateHistory;
 import com.macro.mall.service.OmsOrderService;
 import com.macro.mall.util.CurrentMerchantUtil;
@@ -33,6 +35,8 @@ public class OmsOrderServiceImpl implements OmsOrderService {
     private OmsOrderOperateHistoryDao orderOperateHistoryDao;
     @Autowired
     private OmsOrderOperateHistoryMapper orderOperateHistoryMapper;
+    @Autowired
+    private OmsOrderLogisticsTraceMapper orderLogisticsTraceMapper;
 
     @Override
     public List<OmsOrder> list(OmsOrderQueryParam queryParam, Integer pageSize, Integer pageNum) {
@@ -63,6 +67,14 @@ public class OmsOrderServiceImpl implements OmsOrderService {
                     return history;
                 }).collect(Collectors.toList());
         orderOperateHistoryDao.insertList(operateHistoryList);
+        //添加模拟物流轨迹
+        for (OmsOrderDeliveryParam param : deliveryParamList) {
+            OmsOrderLogisticsTrace trace = new OmsOrderLogisticsTrace();
+            trace.setOrderId(param.getOrderId());
+            trace.setCreateTime(new Date());
+            trace.setContent("商家已发货，物流公司：" + param.getDeliveryCompany() + "，运单号：" + param.getDeliverySn());
+            orderLogisticsTraceMapper.insert(trace);
+        }
         return count;
     }
 

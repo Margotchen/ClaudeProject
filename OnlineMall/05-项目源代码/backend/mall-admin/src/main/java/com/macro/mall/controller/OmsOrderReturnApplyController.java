@@ -3,14 +3,18 @@ package com.macro.mall.controller;
 import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.dto.OmsOrderReturnApplyResult;
+import com.macro.mall.dto.OmsReturnApplyHandleParam;
+import com.macro.mall.dto.OmsReturnApplyParam;
 import com.macro.mall.dto.OmsReturnApplyQueryParam;
 import com.macro.mall.dto.OmsUpdateStatusParam;
 import com.macro.mall.model.OmsOrderReturnApply;
 import com.macro.mall.service.OmsOrderReturnApplyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -60,6 +64,28 @@ public class OmsOrderReturnApplyController {
     @ResponseBody
     public CommonResult updateStatus(@PathVariable Long id, @RequestBody OmsUpdateStatusParam statusParam) {
         int count = returnApplyService.updateStatus(id, statusParam);
+        if (count > 0) {
+            return CommonResult.success(count);
+        }
+        return CommonResult.failed();
+    }
+
+    @Operation(summary = "用户发起售后申请")
+    @RequestMapping(value = "/create", method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult create(@Valid @RequestBody OmsReturnApplyParam param) {
+        int count = returnApplyService.create(param);
+        if (count > 0) {
+            return CommonResult.success(count);
+        }
+        return CommonResult.failed();
+    }
+
+    @Operation(summary = "商家审核售后申请")
+    @RequestMapping(value = "/handle", method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult handle(@Valid @RequestBody OmsReturnApplyHandleParam param) {
+        int count = returnApplyService.handle(param);
         if (count > 0) {
             return CommonResult.success(count);
         }
