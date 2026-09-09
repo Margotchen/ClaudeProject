@@ -31,3 +31,12 @@ cookies*.txt
 tmp/
 temp/
 /claude.md
+
+# Sensitive config files (dev/prod credentials)
+05-项目源代码/backend/*/src/main/resources/application-dev.yml
+05-项目源代码/backend/*/src/main/resources/application-prod.yml
+05-项目源代码/frontend/.env.production
+
+# Backup git directories from cloned submodules
+05-项目源代码/backend.git.bak/
+05-项目源代码/frontend.git.bak/
