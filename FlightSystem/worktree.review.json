@@ -1,0 +1,26 @@
+[
+  {
+    "file": "C:/ClaudeProject/FlightSystem/05-项目源代码/flight-system-backend/controllers/auth.controller.js",
+    "line": 64,
+    "summary": "profile endpoint returns a Sequelize user with nested role.role_code instead of the flattened roleCode expected by userStore, so role-based routing breaks after any page refresh.",
+    "failure_scenario": "A logged-in service user refreshes the browser. userStore.fetchUserInfo() calls GET /auth/profile, stores { ..., role: { role_code: 'service' }, ... } without roleCode. The new root beforeEnter (router/index.js:16-32) reads userStore.roleCode as undefined and redirects to /passenger/search; the global beforeEach then rejects because meta.roles=['passenger'] does not include undefined and redirects back to '/', creating an infinite loop for every role."
+  },
+  {
+    "file": "C:/ClaudeProject/FlightSystem/05-项目源代码/flight-system-frontend/src/views/service/PassengerOrders.vue",
+    "line": 112,
+    "summary": "The service/operator order list links to /passenger/order/:id, but that route's meta.roles was narrowed to ['passenger'], so clicking Detail redirects service/operator users away.",
+    "failure_scenario": "A service staff member opens /service/orders, sees the passenger order list, and clicks the Detail button. The router pushes /passenger/order/123, but router.beforeEach sees meta.roles=['passenger'] (router/index.js:55-58) and the user's roleCode is 'service', so it redirects to '/' instead of showing the order."
+  },
+  {
+    "file": "C:/ClaudeProject/FlightSystem/05-项目源代码/flight-system-frontend/src/router/index.js",
+    "line": 56,
+    "summary": "Passenger order detail route meta was narrowed to ['passenger'] while the backend getOrderDetail still explicitly permits service/operator, creating an inconsistent access-control boundary.",
+    "failure_scenario": "A service user is authorized by the backend (booking.controller.js:47) to fetch order details at GET /bookings/:id, but the frontend route guard now rejects the same user from /passenger/order/:id; the two layers disagree on who may view an order."
+  },
+  {
+    "file": "C:/ClaudeProject/FlightSystem/05-项目源代码/flight-system-backend/controllers/booking.controller.js",
+    "line": 34,
+    "summary": "getAllOrders forwards req.query.status to the service without parsing or normalizing, so non-numeric, null, or array values can produce unexpected WHERE clauses.",
+    "failure_scenario": "If a caller sends GET /bookings/all?status=pending, the controller sets where.status='pending' on an integer TINYINT column and returns an empty list; if a caller sends duplicate status parameters so req.query.status becomes an array, Sequelize may generate an invalid or surprising query."
+  }
+]

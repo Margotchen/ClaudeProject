@@ -1,0 +1,807 @@
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/controllers/auth.controller.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/controllers/auth.controller.js"
+index 7792cac..d848e28 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/controllers/auth.controller.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/controllers/auth.controller.js"
+@@ -61,7 +61,14 @@ exports.profile = async (req, res, next) => {
+     if (!user) {
+       return res.status(404).json(response(404, 'User not found'));
+     }
+-    res.json(response(200, 'OK', { user }));
++    const sessionUser = {
++      id: user.id,
++      username: user.username,
++      realName: user.real_name,
++      roleCode: user.role.role_code,
++      roleName: user.role.role_name
++    };
++    res.json(response(200, 'OK', { user: sessionUser }));
+   } catch (err) {
+     next(err);
+   }
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/controllers/booking.controller.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/controllers/booking.controller.js"
+index ab6d0ed..cf976f4 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/controllers/booking.controller.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/controllers/booking.controller.js"
+@@ -25,6 +25,27 @@ exports.getMyOrders = async (req, res, next) => {
+   }
+ };
+ 
++exports.getAllOrders = async (req, res, next) => {
++  try {
++    if (!req.user) throwError('Unauthorized', 401);
++    const page = Math.max(1, parseInt(req.query.page) || 1);
++    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize) || 10));
++    const status = req.query.status;
++    const statusNum = status === undefined || status === '' || status === null
++      ? undefined
++      : parseInt(status);
++    const result = await bookingService.getAllOrders({
++      page,
++      pageSize,
++      status: Number.isNaN(statusNum) ? undefined : statusNum,
++      keyword: req.query.keyword
++    });
++    res.json(pageResponse(result.list, result.pagination));
++  } catch (err) {
++    next(err);
++  }
++};
++
+ exports.getOrderDetail = async (req, res, next) => {
+   try {
+     if (!req.user) throwError('Unauthorized', 401);
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/routes/booking.routes.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/routes/booking.routes.js"
+index 840793f..7d5254f 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/routes/booking.routes.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/routes/booking.routes.js"
+@@ -7,6 +7,7 @@ const router = express.Router();
+ 
+ router.post('/', requireAuth, verifyRole('passenger'), bookingController.createBooking);
+ router.get('/my', requireAuth, verifyRole('passenger'), bookingController.getMyOrders);
++router.get('/all', requireAuth, verifyRole('service', 'operator'), bookingController.getAllOrders);
+ router.get('/:id', requireAuth, bookingController.getOrderDetail);
+ router.post('/:id/cancel', requireAuth, verifyRole('passenger'), bookingController.cancelOrder);
+ 
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/services/booking.service.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/services/booking.service.js"
+index b2f8ea9..d75e9b1 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/services/booking.service.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/services/booking.service.js"
+@@ -3,7 +3,7 @@ const db = require('../models');
+ const { throwError } = require('../utils/response');
+ 
+ const {
+-  Order, OrderPassenger, FlightSchedule, SeatInventory, Ticket, Payment, Flight, Airport, Aircraft
++  Order, OrderPassenger, FlightSchedule, SeatInventory, Ticket, Payment, Flight, Airport, Aircraft, SysUser
+ } = db;
+ 
+ const CABIN_PRICE_FIELDS = {
+@@ -24,6 +24,10 @@ function generateOrderNo() {
+   return `ORD${ts}${random}`;
+ }
+ 
++function escapeLike(value) {
++  return value.replace(/[%_]/g, '\\$&');
++}
++
+ class BookingService {
+   async createBooking(userId, data) {
+     const { scheduleId, cabinClass, passengers, contactName, contactPhone } = data;
+@@ -160,6 +164,50 @@ class BookingService {
+     };
+   }
+ 
++  async getAllOrders({ page = 1, pageSize = 10, status, keyword }) {
++    const where = {};
++    if (status !== undefined && status !== '' && status !== null && Number.isInteger(Number(status))) {
++      where.status = Number(status);
++    }
++    if (keyword) {
++      const safeKeyword = escapeLike(String(keyword));
++      where.order_no = { [Op.like]: `%${safeKeyword}%` };
++    }
++
++    const { count, rows } = await Order.findAndCountAll({
++      where,
++      include: [
++        {
++          model: FlightSchedule,
++          as: 'schedule',
++          include: [
++            {
++              model: Flight,
++              as: 'flight',
++              include: [
++                { model: Airport, as: 'departureAirport', attributes: ['airport_code', 'city_name'] },
++                { model: Airport, as: 'arrivalAirport', attributes: ['airport_code', 'city_name'] }
++              ]
++            }
++          ]
++        },
++        {
++          model: SysUser,
++          as: 'user',
++          attributes: ['username', 'real_name']
++        }
++      ],
++      offset: (page - 1) * pageSize,
++      limit: pageSize,
++      order: [['createdAt', 'DESC']]
++    });
++
++    return {
++      list: rows,
++      pagination: { page, pageSize, total: count }
++    };
++  }
++
+   async cancelOrder(userId, orderId) {
+     const order = await Order.findByPk(orderId);
+     if (!order) throwError('Order not found', 404);
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/api/booking.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/api/booking.js"
+index c70c184..e89991d 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/api/booking.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/api/booking.js"
+@@ -2,5 +2,6 @@ import request from '@/utils/request'
+ 
+ export const createBooking = (data) => request.post('/bookings', data)
+ export const getMyOrders = (params) => request.get('/bookings/my', { params })
++export const getAllOrders = (params) => request.get('/bookings/all', { params })
+ export const getOrderDetail = (id) => request.get(`/bookings/${id}`)
+ export const cancelOrder = (id) => request.post(`/bookings/${id}/cancel`)
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/components/LanguageSwitch.vue" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/components/LanguageSwitch.vue"
+new file mode 100644
+index 0000000..8e4c8a6
+--- /dev/null
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/components/LanguageSwitch.vue"
+@@ -0,0 +1,16 @@
++<template>
++  <el-select v-model="currentLocale" style="width: 100px" size="small">
++    <el-option label="中文" value="zh-CN" />
++    <el-option label="English" value="en-US" />
++  </el-select>
++</template>
++
++<script setup>
++import { computed } from 'vue'
++import { locale, setLocale } from '@/locales'
++
++const currentLocale = computed({
++  get: () => locale.value,
++  set: (val) => setLocale(val)
++})
++</script>
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/components/Layout/index.vue" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/components/Layout/index.vue"
+index f98b30e..1e9134e 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/components/Layout/index.vue"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/components/Layout/index.vue"
+@@ -1,14 +1,14 @@
+ <template>
+   <el-container class="layout-container">
+-    <el-aside width="220px" class="sidebar">
+-      <div class="logo">{{ $t('common.appName') }}</div>
++    <el-aside width="240px" class="sidebar">
++      <div class="logo">
++        <span class="logo-icon">✈</span>
++        <span>{{ $t('common.appName') }}</span>
++      </div>
+       <el-menu
+         :default-active="activeMenu"
+         router
+         class="menu"
+-        background-color="#304156"
+-        text-color="#bfcbd9"
+-        active-text-color="#409EFF"
+       >
+         <template v-if="userStore.isPassenger">
+           <el-menu-item index="/passenger/search">
+@@ -57,10 +57,7 @@
+               <el-icon><Bell /></el-icon>
+             </el-button>
+           </el-badge>
+-          <el-select v-model="currentLocale" style="width: 100px">
+-            <el-option label="中文" value="zh-CN" />
+-            <el-option label="English" value="en-US" />
+-          </el-select>
++          <LanguageSwitch />
+           <span class="username">{{ userStore.userInfo?.realName || userStore.userInfo?.username }}</span>
+           <el-button text @click="logout">{{ $t('common.logout') }}</el-button>
+         </div>
+@@ -89,9 +86,9 @@ import { useRoute, useRouter } from 'vue-router'
+ import { ElMessage } from 'element-plus'
+ import { Search, Tickets, Refresh, Promotion, InfoFilled, DataLine, Bell } from '@element-plus/icons-vue'
+ import { useUserStore } from '@/stores/user'
+-import { locale, setLocale } from '@/locales'
+ import { useI18nHelpers } from '@/composables/useI18nHelpers'
+ import { getUnreadCount, getNotifications, markAsRead } from '@/api/notification'
++import LanguageSwitch from '@/components/LanguageSwitch.vue'
+ 
+ const route = useRoute()
+ const router = useRouter()
+@@ -104,11 +101,6 @@ const notifications = ref([])
+ const unreadCount = ref(0)
+ let notificationTimer = null
+ 
+-const currentLocale = computed({
+-  get: () => locale.value,
+-  set: (val) => setLocale(val)
+-})
+-
+ const loadNotifications = async () => {
+   try {
+     const res = await getNotifications({ pageSize: 20 })
+@@ -165,49 +157,99 @@ onBeforeUnmount(() => {
+ }
+ 
+ .sidebar {
+-  background-color: #304156;
++  background-color: #fafbfc;
++  border-right: 1px solid #d0d7de;
++  display: flex;
++  flex-direction: column;
+ }
+ 
+ .logo {
+-  height: 60px;
+-  line-height: 60px;
+-  text-align: center;
++  height: 64px;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 10px;
++  padding: 0 20px;
++  color: #24292f;
++  font-size: 18px;
++  font-weight: 600;
++  border-bottom: 1px solid #d0d7de;
++}
++
++.logo-icon {
++  width: 32px;
++  height: 32px;
++  border-radius: 8px;
++  background: linear-gradient(135deg, #0969da 0%, #0550ae 100%);
+   color: #fff;
++  display: flex;
++  align-items: center;
++  justify-content: center;
+   font-size: 18px;
+-  font-weight: bold;
+-  border-bottom: 1px solid #1f2d3d;
+ }
+ 
+ .menu {
+   border-right: none;
++  background: transparent;
++  padding: 12px;
++}
++
++.menu :deep(.el-menu-item) {
++  height: 44px;
++  line-height: 44px;
++  border-radius: 8px;
++  margin-bottom: 4px;
++  color: #24292f;
++  font-weight: 500;
++}
++
++.menu :deep(.el-menu-item:hover) {
++  background-color: #eaeef2;
++}
++
++.menu :deep(.el-menu-item.is-active) {
++  background-color: #ddf4ff;
++  color: #0969da;
++  font-weight: 600;
++}
++
++.menu :deep(.el-menu-item .el-icon) {
++  color: #57606a;
++}
++
++.menu :deep(.el-menu-item.is-active .el-icon) {
++  color: #0969da;
+ }
+ 
+ .header {
+-  background-color: #fff;
+-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
++  background-color: #ffffff;
++  border-bottom: 1px solid #d0d7de;
+   display: flex;
+   align-items: center;
+   justify-content: flex-end;
++  height: 64px;
+ }
+ 
+ .header-right {
+   display: flex;
+   align-items: center;
+-  gap: 20px;
++  gap: 16px;
+ }
+ 
+ .notification-badge {
+-  margin-right: 10px;
++  margin-right: 4px;
+ }
+ 
+ .username {
+-  color: #606266;
++  color: #24292f;
+   font-size: 14px;
++  font-weight: 500;
+ }
+ 
+ .main-content {
+-  background-color: #f0f2f5;
++  background-color: #f6f8fa;
+   overflow-y: auto;
++  padding: 24px;
+ }
+ 
+ .notification-item {
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/en-US.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/en-US.js"
+index c1263d5..cf8cf74 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/en-US.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/en-US.js"
+@@ -50,7 +50,6 @@ export default {
+     password: 'Password',
+     usernamePlaceholder: 'Enter username',
+     passwordPlaceholder: 'Enter password',
+-    demoAccounts: 'Demo accounts',
+     success: 'Login successful'
+   },
+   flightSearch: {
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/zh-CN.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/zh-CN.js"
+index c92d40e..140c121 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/zh-CN.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/zh-CN.js"
+@@ -50,7 +50,6 @@ export default {
+     password: '密码',
+     usernamePlaceholder: '请输入用户名',
+     passwordPlaceholder: '请输入密码',
+-    demoAccounts: '演示账号',
+     success: '登录成功'
+   },
+   flightSearch: {
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/router/index.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/router/index.js"
+index ccedad6..5f7787a 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/router/index.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/router/index.js"
+@@ -13,28 +13,27 @@ const routes = [
+   {
+     path: '/',
+     component: Layout,
+-    redirect: '/passenger/search',
+     children: [
+       // Passenger routes
+       {
+         path: '/passenger/search',
+         component: () => import('@/views/passenger/FlightSearch.vue'),
+-        meta: { roles: ['passenger', 'service', 'operator'] }
++        meta: { roles: ['passenger'] }
+       },
+       {
+         path: '/passenger/detail/:id',
+         component: () => import('@/views/passenger/FlightDetail.vue'),
+-        meta: { roles: ['passenger', 'service', 'operator'] }
++        meta: { roles: ['passenger'] }
+       },
+       {
+         path: '/passenger/booking/:scheduleId',
+         component: () => import('@/views/passenger/Booking.vue'),
+-        meta: { roles: ['passenger', 'service', 'operator'] }
++        meta: { roles: ['passenger'] }
+       },
+       {
+         path: '/passenger/orders',
+         component: () => import('@/views/passenger/MyOrders.vue'),
+-        meta: { roles: ['passenger', 'service', 'operator'] }
++        meta: { roles: ['passenger'] }
+       },
+       {
+         path: '/passenger/order/:id',
+@@ -44,22 +43,22 @@ const routes = [
+       {
+         path: '/passenger/pay/:orderId',
+         component: () => import('@/views/passenger/Payment.vue'),
+-        meta: { roles: ['passenger', 'service', 'operator'] }
++        meta: { roles: ['passenger'] }
+       },
+       {
+         path: '/passenger/checkin/:orderId',
+         component: () => import('@/views/passenger/CheckIn.vue'),
+-        meta: { roles: ['passenger', 'service', 'operator'] }
++        meta: { roles: ['passenger'] }
+       },
+       {
+         path: '/passenger/itinerary/:orderId',
+         component: () => import('@/views/passenger/Itinerary.vue'),
+-        meta: { roles: ['passenger', 'service', 'operator'] }
++        meta: { roles: ['passenger'] }
+       },
+       {
+         path: '/passenger/refund-change/:orderId',
+         component: () => import('@/views/passenger/RefundChange.vue'),
+-        meta: { roles: ['passenger', 'service', 'operator'] }
++        meta: { roles: ['passenger'] }
+       },
+       // Service routes
+       {
+@@ -97,6 +96,12 @@ const router = createRouter({
+   routes
+ })
+ 
++const defaultHomeByRole = {
++  service: '/service/refunds',
++  operator: '/operator/dashboard',
++  passenger: '/passenger/search'
++}
++
+ router.beforeEach(async (to, from, next) => {
+   const userStore = useUserStore()
+ 
+@@ -116,6 +121,10 @@ router.beforeEach(async (to, from, next) => {
+     return next('/login')
+   }
+ 
++  if (to.path === '/') {
++    return next(defaultHomeByRole[userStore.roleCode] || '/passenger/search')
++  }
++
+   if (to.meta.roles && !to.meta.roles.includes(userStore.roleCode)) {
+     return next('/')
+   }
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/views/login/index.vue" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/views/login/index.vue"
+index 17bc7bc..3df182c 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/views/login/index.vue"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/views/login/index.vue"
+@@ -1,29 +1,55 @@
+ <template>
+   <div class="login-page">
+-    <el-card class="login-card" shadow="always">
+-      <template #header>
+-        <h2 class="login-title">{{ $t('login.title') }}</h2>
+-      </template>
+-      <el-form :model="form" :rules="rules" ref="formRef" label-position="top" @submit.prevent="handleLogin">
+-        <el-form-item :label="$t('login.username')" prop="username">
+-          <el-input v-model="form.username" :placeholder="$t('login.usernamePlaceholder')" />
+-        </el-form-item>
+-        <el-form-item :label="$t('login.password')" prop="password">
+-          <el-input v-model="form.password" type="password" :placeholder="$t('login.passwordPlaceholder')" />
+-        </el-form-item>
+-        <el-form-item>
+-          <el-button type="primary" :loading="loading" @click="handleLogin" style="width: 100%">
+-            {{ $t('common.login') }}
+-          </el-button>
+-        </el-form-item>
+-      </el-form>
+-      <div class="demo-accounts">
+-        <p>{{ $t('login.demoAccounts') }}:</p>
+-        <el-tag size="small">passenger / pass123</el-tag>
+-        <el-tag size="small">service / svc123</el-tag>
+-        <el-tag size="small">operator / op123</el-tag>
++    <div class="login-container">
++      <div class="login-brand">
++        <div class="brand-mark">✈</div>
++        <h1 class="brand-title">{{ $t('common.appName') }}</h1>
++        <p class="brand-subtitle">{{ $t('login.title') }}</p>
+       </div>
+-    </el-card>
++
++      <el-card class="login-card" shadow="never">
++        <el-form
++          ref="formRef"
++          :model="form"
++          :rules="rules"
++          label-position="top"
++          size="large"
++          @submit.prevent="handleLogin"
++        >
++          <el-form-item :label="$t('login.username')" prop="username">
++            <el-input
++              v-model="form.username"
++              :placeholder="$t('login.usernamePlaceholder')"
++              clearable
++            />
++          </el-form-item>
++          <el-form-item :label="$t('login.password')" prop="password">
++            <el-input
++              v-model="form.password"
++              type="password"
++              show-password
++              :placeholder="$t('login.passwordPlaceholder')"
++              clearable
++            />
++          </el-form-item>
++          <el-form-item>
++            <el-button
++              type="primary"
++              size="large"
++              :loading="loading"
++              style="width: 100%"
++              @click="handleLogin"
++            >
++              {{ $t('common.login') }}
++            </el-button>
++          </el-form-item>
++        </el-form>
++      </el-card>
++
++      <footer class="login-footer">
++        <LanguageSwitch />
++      </footer>
++    </div>
+   </div>
+ </template>
+ 
+@@ -33,6 +59,7 @@ import { useRouter, useRoute } from 'vue-router'
+ import { ElMessage } from 'element-plus'
+ import { useUserStore } from '@/stores/user'
+ import { useI18n } from '@/composables/useI18n'
++import LanguageSwitch from '@/components/LanguageSwitch.vue'
+ 
+ const router = useRouter()
+ const route = useRoute()
+@@ -58,8 +85,12 @@ const handleLogin = async () => {
+     loading.value = true
+     await userStore.login(form)
+     ElMessage.success(t('login.success'))
+-    const redirect = route.query.redirect || '/passenger/search'
+-    router.push(redirect)
++    const redirect = route.query.redirect
++    if (typeof redirect === 'string' && redirect.startsWith('/')) {
++      router.push(redirect)
++    } else {
++      router.push('/')
++    }
+   } catch (err) {
+     console.error(err)
+   } finally {
+@@ -74,32 +105,90 @@ const handleLogin = async () => {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
++  background: #f6f8fa;
++  padding: 24px;
+ }
+ 
+-.login-card {
+-  width: 400px;
+-  border-radius: 12px;
++.login-container {
++  width: 100%;
++  max-width: 360px;
+ }
+ 
+-.login-title {
++.login-brand {
+   text-align: center;
++  margin-bottom: 24px;
++}
++
++.brand-mark {
++  width: 56px;
++  height: 56px;
++  margin: 0 auto 16px;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  border-radius: 12px;
++  background: linear-gradient(135deg, #0969da 0%, #0550ae 100%);
++  color: #fff;
++  font-size: 28px;
++  box-shadow: 0 4px 12px rgba(9, 105, 218, 0.25);
++}
++
++.brand-title {
++  font-size: 24px;
++  font-weight: 600;
++  color: #24292f;
++  margin: 0 0 4px;
++  letter-spacing: -0.5px;
++}
++
++.brand-subtitle {
++  font-size: 14px;
++  color: #57606a;
+   margin: 0;
+-  color: #303133;
+ }
+ 
+-.demo-accounts {
+-  margin-top: 16px;
+-  text-align: center;
++.login-card {
++  border-radius: 12px;
++  border: 1px solid #d0d7de;
++  background: #ffffff;
++}
++
++.login-card :deep(.el-card__body) {
++  padding: 28px;
++}
++
++.login-card :deep(.el-form-item__label) {
++  color: #24292f;
++  font-weight: 500;
++  padding-bottom: 6px;
++}
++
++.login-card :deep(.el-input__wrapper) {
++  border-radius: 8px;
++  box-shadow: 0 0 0 1px #d0d7de inset;
++  transition: box-shadow 0.2s;
++}
++
++.login-card :deep(.el-input__wrapper.is-focus) {
++  box-shadow: 0 0 0 2px #0969da33, 0 0 0 1px #0969da inset;
+ }
+ 
+-.demo-accounts p {
+-  margin-bottom: 8px;
+-  color: #909399;
+-  font-size: 12px;
++.login-card :deep(.el-button--primary) {
++  border-radius: 8px;
++  font-weight: 600;
++  background: #0969da;
++  border-color: #0969da;
++  transition: background 0.2s, border-color 0.2s;
+ }
+ 
+-.demo-accounts .el-tag {
+-  margin: 0 4px;
++.login-card :deep(.el-button--primary:hover) {
++  background: #0550ae;
++  border-color: #0550ae;
++}
++
++.login-footer {
++  margin-top: 20px;
++  display: flex;
++  justify-content: center;
+ }
+ </style>
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/views/service/PassengerOrders.vue" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/views/service/PassengerOrders.vue"
+index 5d0e3ca..615f99f 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/views/service/PassengerOrders.vue"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/views/service/PassengerOrders.vue"
+@@ -1,8 +1,134 @@
+ <template>
+-  <div>
++  <div class="passenger-orders">
+     <h1>{{ $t('menu.passengerOrders') }}</h1>
++
++    <el-card v-loading="loading">
++      <el-form :model="query" inline>
++        <el-form-item :label="$t('common.status')">
++          <el-select v-model="query.status" clearable :placeholder="$t('common.status')" style="width: 120px;">
++            <el-option v-for="(label, value) in statusOptions" :key="value" :label="label" :value="parseInt(value)" />
++          </el-select>
++        </el-form-item>
++        <el-form-item :label="$t('myOrders.orderNo')">
++          <el-input v-model="query.keyword" clearable :placeholder="$t('myOrders.orderNo')" />
++        </el-form-item>
++        <el-form-item>
++          <el-button type="primary" @click="loadOrders">{{ $t('common.search') }}</el-button>
++        </el-form-item>
++      </el-form>
++
++      <el-table :data="orderList" border>
++        <el-table-column prop="order_no" :label="$t('myOrders.orderNo')" width="180" />
++        <el-table-column prop="user.username" :label="$t('login.username')" width="120" />
++        <el-table-column :label="$t('myOrders.flight')">
++          <template #default="{ row }">
++            {{ row.schedule?.flight?.flight_no }}
++            <br />
++            <span class="route-text">
++              {{ row.schedule?.flight?.departureAirport?.airport_code }} → {{ row.schedule?.flight?.arrivalAirport?.airport_code }}
++            </span>
++          </template>
++        </el-table-column>
++        <el-table-column :label="$t('myOrders.departure')" width="160">
++          <template #default="{ row }">
++            {{ formatDate(row.schedule?.departure_time) }}
++            <br />
++            {{ formatTime(row.schedule?.departure_time) }}
++          </template>
++        </el-table-column>
++        <el-table-column prop="cabin_class" :label="$t('myOrders.cabin')">
++          <template #default="{ row }">
++            {{ cabinClassText(row.cabin_class) }}
++          </template>
++        </el-table-column>
++        <el-table-column prop="total_amount" :label="$t('myOrders.amount')" width="120">
++          <template #default="{ row }">
++            ¥{{ row.total_amount }}
++          </template>
++        </el-table-column>
++        <el-table-column :label="$t('common.status')" width="120">
++          <template #default="{ row }">
++            <el-tag :type="orderStatusType(row.status)">{{ orderStatusText(row.status) }}</el-tag>
++          </template>
++        </el-table-column>
++        <el-table-column :label="$t('myOrders.actions')" width="120">
++          <template #default="{ row }">
++            <el-button size="small" @click="viewOrder(row)">{{ $t('common.detail') }}</el-button>
++          </template>
++        </el-table-column>
++      </el-table>
++
++      <el-pagination
++        v-model:current-page="query.page"
++        v-model:page-size="query.pageSize"
++        :total="total"
++        layout="total, prev, pager, next"
++        @current-change="loadOrders"
++      />
++    </el-card>
+   </div>
+ </template>
+ 
+ <script setup>
++import { ref, reactive, onMounted, computed } from 'vue'
++import { useRouter } from 'vue-router'
++import { ElMessage } from 'element-plus'
++import { getAllOrders } from '@/api/booking'
++import { useI18n } from '@/composables/useI18n'
++import { useI18nHelpers } from '@/composables/useI18nHelpers'
++
++const router = useRouter()
++const { t } = useI18n()
++const { formatDate, formatTime, cabinClassText, orderStatusType, orderStatusText } = useI18nHelpers()
++
++const loading = ref(false)
++const orderList = ref([])
++const total = ref(0)
++const query = reactive({ page: 1, pageSize: 10, status: '', keyword: '' })
++
++const statusOptions = computed(() => ({
++  0: t('orderStatus.pending'),
++  1: t('orderStatus.paid'),
++  2: t('orderStatus.ticketed'),
++  3: t('orderStatus.checkedIn'),
++  4: t('orderStatus.changed'),
++  5: t('orderStatus.refunded'),
++  6: t('orderStatus.cancelled')
++}))
++
++const loadOrders = async () => {
++  loading.value = true
++  try {
++    const params = { ...query }
++    if (params.status === '' || params.status == null) {
++      delete params.status
++    }
++    const res = await getAllOrders(params)
++    orderList.value = res.data.list
++    total.value = res.data.pagination.total
++  } catch (err) {
++    ElMessage.error(err?.message || t('common.unknown'))
++  } finally {
++    loading.value = false
++  }
++}
++
++const viewOrder = (row) => {
++  router.push(`/passenger/order/${row.id}`)
++}
++
++onMounted(() => {
++  loadOrders()
++})
+ </script>
++
++<style scoped>
++.passenger-orders {
++  padding: 20px;
++}
++
++.route-text {
++  color: #909399;
++  font-size: 12px;
++}
++</style>

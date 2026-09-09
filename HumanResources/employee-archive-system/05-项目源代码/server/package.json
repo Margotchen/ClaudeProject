@@ -1,0 +1,26 @@
+{
+  "name": "employee-archive-server",
+  "version": "1.0.0",
+  "description": "员工信息档案管理系统后端",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js",
+    "init-db": "node database/init.js",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "xlsx": "^0.18.5",
+    "pdfmake": "^0.2.10",
+    "multer": "^1.4.5-lts.1",
+    "dayjs": "^1.11.11",
+    "lodash": "^4.17.21",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

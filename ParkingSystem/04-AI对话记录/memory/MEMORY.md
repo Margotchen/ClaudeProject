@@ -1,0 +1,4 @@
+- [项目基线](project-baseline.md) — 停车位预约管理系统的背景、目标与架构约束
+- [技术架构](tech-architecture.md) — Vue3 + Node.js + SQLite 技术栈、目录结构与常用命令
+- [业务规则](business-rules.md) — 预约、核销、违约、封禁等核心规则与默认账号
+- [AI Coding 上下文](ai-coding-context.md) — 指向 `04-AI对话记录/08-AI-Coding-Context.md` 的参考记录

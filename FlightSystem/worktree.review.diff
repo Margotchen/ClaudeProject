@@ -1,0 +1,2823 @@
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/controllers/flight.controller.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/controllers/flight.controller.js"
+index e45220d..f3b28ee 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/controllers/flight.controller.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/controllers/flight.controller.js"
+@@ -119,6 +119,21 @@ exports.searchFlights = async (req, res, next) => {
+   }
+ };
+ 
++// Weekly lowest prices for passenger date bar
++exports.searchWeeklyPrices = async (req, res, next) => {
++  try {
++    const result = await flightService.searchWeeklyPrices({
++      originCode: req.query.origin,
++      destinationCode: req.query.destination,
++      startDate: req.query.startDate,
++      endDate: req.query.endDate
++    });
++    res.json(response(200, 'OK', result));
++  } catch (err) {
++    next(err);
++  }
++};
++
+ // Flight status update
+ exports.updateScheduleStatus = async (req, res, next) => {
+   try {
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/routes/flight.routes.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/routes/flight.routes.js"
+index c313472..b2db7de 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/routes/flight.routes.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/routes/flight.routes.js"
+@@ -7,6 +7,7 @@ const router = express.Router();
+ 
+ // Public / passenger search
+ router.get('/search', flightController.searchFlights);
++router.get('/weekly', flightController.searchWeeklyPrices);
+ 
+ // Operator flight management
+ router.get('/', requireAuth, verifyRole('operator'), flightController.listFlights);
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/scripts/seed-data.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/scripts/seed-data.js"
+index 80337c9..8def138 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/scripts/seed-data.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/scripts/seed-data.js"
+@@ -54,61 +54,87 @@ async function initData() {
+   // Aircraft
+   await Aircraft.bulkCreate([
+     { model: 'Airbus A320-200', total_seats: 150, layout: JSON.stringify({ economy: { rows: 25, cols: 6, startRow: 11 }, business: { rows: 4, cols: 4, startRow: 5 }, first: { rows: 4, cols: 4, startRow: 1 } }) },
+-    { model: 'Boeing 737-800', total_seats: 160, layout: JSON.stringify({ economy: { rows: 27, cols: 6, startRow: 11 }, business: { rows: 4, cols: 4, startRow: 5 }, first: { rows: 4, cols: 4, startRow: 1 } }) }
++    { model: 'Boeing 737-800', total_seats: 160, layout: JSON.stringify({ economy: { rows: 27, cols: 6, startRow: 11 }, business: { rows: 4, cols: 4, startRow: 5 }, first: { rows: 4, cols: 4, startRow: 1 } }) },
++    { model: 'Airbus A330-300', total_seats: 280, layout: JSON.stringify({ economy: { rows: 40, cols: 8, startRow: 11 }, business: { rows: 6, cols: 6, startRow: 5 }, first: { rows: 4, cols: 4, startRow: 1 } }) }
+   ]);
+   const aircraftRows = await Aircraft.findAll();
+   const aircraftIds = aircraftRows.map(a => a.id);
+ 
+-  // Flights
+-  await Flight.bulkCreate([
+-    { flight_no: 'CA1201', departure_airport_id: airportMap['PEK'], arrival_airport_id: airportMap['SHA'], planned_duration: 135 },
+-    { flight_no: 'CA1202', departure_airport_id: airportMap['SHA'], arrival_airport_id: airportMap['PEK'], planned_duration: 140 },
+-    { flight_no: 'MU5301', departure_airport_id: airportMap['SHA'], arrival_airport_id: airportMap['CAN'], planned_duration: 130 },
+-    { flight_no: 'MU5302', departure_airport_id: airportMap['CAN'], arrival_airport_id: airportMap['SHA'], planned_duration: 130 },
+-    { flight_no: 'CZ3001', departure_airport_id: airportMap['CAN'], arrival_airport_id: airportMap['PEK'], planned_duration: 195 },
+-    { flight_no: 'CZ3002', departure_airport_id: airportMap['PEK'], arrival_airport_id: airportMap['CAN'], planned_duration: 190 },
+-    { flight_no: 'ZH9001', departure_airport_id: airportMap['SZX'], arrival_airport_id: airportMap['TFU'], planned_duration: 155 },
+-    { flight_no: 'ZH9002', departure_airport_id: airportMap['TFU'], arrival_airport_id: airportMap['SZX'], planned_duration: 150 }
+-  ]);
++  // Flights (16 routes, 2 flights per city pair)
++  const flightDefinitions = [
++    { flight_no: 'CA1201', from: 'PEK', to: 'SHA', hour: 8, minute: 0, duration: 135 },
++    { flight_no: 'CA1203', from: 'PEK', to: 'SHA', hour: 14, minute: 30, duration: 135 },
++    { flight_no: 'CA1202', from: 'SHA', to: 'PEK', hour: 11, minute: 0, duration: 140 },
++    { flight_no: 'CA1204', from: 'SHA', to: 'PEK', hour: 18, minute: 0, duration: 140 },
++    { flight_no: 'MU5301', from: 'SHA', to: 'CAN', hour: 9, minute: 30, duration: 130 },
++    { flight_no: 'MU5303', from: 'SHA', to: 'CAN', hour: 16, minute: 0, duration: 130 },
++    { flight_no: 'MU5302', from: 'CAN', to: 'SHA', hour: 13, minute: 0, duration: 130 },
++    { flight_no: 'MU5304', from: 'CAN', to: 'SHA', hour: 19, minute: 30, duration: 130 },
++    { flight_no: 'CZ3001', from: 'CAN', to: 'PEK', hour: 14, minute: 30, duration: 195 },
++    { flight_no: 'CZ3003', from: 'CAN', to: 'PEK', hour: 20, minute: 0, duration: 195 },
++    { flight_no: 'CZ3002', from: 'PEK', to: 'CAN', hour: 8, minute: 30, duration: 190 },
++    { flight_no: 'CZ3004', from: 'PEK', to: 'CAN', hour: 15, minute: 0, duration: 190 },
++    { flight_no: 'ZH9001', from: 'SZX', to: 'TFU', hour: 10, minute: 0, duration: 155 },
++    { flight_no: 'ZH9003', from: 'SZX', to: 'TFU', hour: 17, minute: 0, duration: 155 },
++    { flight_no: 'ZH9002', from: 'TFU', to: 'SZX', hour: 15, minute: 0, duration: 150 },
++    { flight_no: 'ZH9004', from: 'TFU', to: 'SZX', hour: 21, minute: 0, duration: 150 }
++  ];
++
++  await Flight.bulkCreate(flightDefinitions.map(f => ({
++    flight_no: f.flight_no,
++    departure_airport_id: airportMap[f.from],
++    arrival_airport_id: airportMap[f.to],
++    planned_duration: f.duration
++  })));
++
+   const flightRows = await Flight.findAll();
+   const flightMap = {};
+   flightRows.forEach(f => { flightMap[f.flight_no] = f.id; });
+ 
+-  // Schedules for next 7 days
++  // Schedules for the next 14 days
+   const seatInventories = [];
+   const flightStatuses = [];
+ 
+-  const baseTimes = {
+-    'CA1201': { hour: 8, minute: 0 },
+-    'CA1202': { hour: 11, minute: 0 },
+-    'MU5301': { hour: 9, minute: 30 },
+-    'MU5302': { hour: 13, minute: 0 },
+-    'CZ3001': { hour: 14, minute: 30 },
+-    'CZ3002': { hour: 8, minute: 30 },
+-    'ZH9001': { hour: 10, minute: 0 },
+-    'ZH9002': { hour: 15, minute: 0 }
+-  };
+-
+   const cabinConfigs = {
+     economy: { seats: 120, priceFactor: 1 },
+     business: { seats: 20, priceFactor: 2.5 },
+     first: { seats: 10, priceFactor: 5 }
+   };
+ 
+-  for (const flight of flightRows) {
+-    const time = baseTimes[flight.flight_no];
+-    for (let i = 0; i < 7; i++) {
++  const routeBasePrices = {
++    'PEK-SHA': 480,
++    'SHA-PEK': 480,
++    'SHA-CAN': 550,
++    'CAN-SHA': 550,
++    'CAN-PEK': 700,
++    'PEK-CAN': 700,
++    'SZX-TFU': 420,
++    'TFU-SZX': 420
++  };
++
++  // Track flight index per route for deterministic price variation
++  const routeFlightIndex = {};
++
++  let scheduleIndex = 0;
++  for (const flightDef of flightDefinitions) {
++    const routeKey = `${flightDef.from}-${flightDef.to}`;
++    routeFlightIndex[routeKey] = (routeFlightIndex[routeKey] || 0);
++    const flightIndex = routeFlightIndex[routeKey]++;
++
++    for (let i = 0; i < 14; i++) {
+       const date = addDays(i);
+       const flightDate = formatDate(date);
+       const departureTime = new Date(date);
+-      departureTime.setHours(time.hour, time.minute, 0, 0);
+-      const arrivalTime = new Date(departureTime.getTime() + flight.planned_duration * 60000);
++      departureTime.setHours(flightDef.hour, flightDef.minute, 0, 0);
++      const arrivalTime = new Date(departureTime.getTime() + flightDef.duration * 60000);
+ 
+-      const aircraftId = aircraftIds[i % aircraftIds.length];
+-      const basePrice = 500 + Math.floor(Math.random() * 300);
++      const aircraftId = aircraftIds[scheduleIndex % aircraftIds.length];
++      const dayOfWeek = date.getDay();
++      const routeBase = routeBasePrices[routeKey] || 500;
++      const basePrice = routeBase + (i * 12) + (dayOfWeek * 8) + (flightIndex * 30);
+ 
+       const schedule = await FlightSchedule.create({
+-        flight_id: flightMap[flight.flight_no],
++        flight_id: flightMap[flightDef.flight_no],
+         aircraft_id: aircraftId,
+         flight_date: flightDate,
+         departure_time: departureTime,
+@@ -134,6 +160,8 @@ async function initData() {
+         status: 1,
+         delay_minutes: 0
+       });
++
++      scheduleIndex++;
+     }
+   }
+ 
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/services/flight.service.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/services/flight.service.js"
+index 127152e..17d41c0 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/services/flight.service.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-backend/services/flight.service.js"
+@@ -1,7 +1,17 @@
+-const { Op } = require('sequelize');
++const { Op, Sequelize } = require('sequelize');
+ const db = require('../models');
+ const { throwError } = require('../utils/response');
+ 
++function buildDateRange(startDate, endDate) {
++  const start = new Date(startDate);
++  const end = new Date(endDate);
++  const dates = [];
++  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
++    dates.push(d.toISOString().split('T')[0]);
++  }
++  return dates;
++}
++
+ const {
+   Airport, Aircraft, Flight, FlightSchedule, SeatInventory, FlightStatus, Order, Notification
+ } = db;
+@@ -252,6 +262,50 @@ class FlightService {
+     };
+   }
+ 
++  // Weekly lowest prices for passenger date bar
++  async searchWeeklyPrices({ originCode, destinationCode, startDate, endDate }) {
++    if (!originCode || !destinationCode || !startDate || !endDate) {
++      throwError('Origin, destination, start date and end date are required');
++    }
++
++    const origin = await Airport.findOne({ where: { airport_code: originCode } });
++    const dest = await Airport.findOne({ where: { airport_code: destinationCode } });
++    if (!origin || !dest) throwError('Airport not found');
++
++    const rows = await FlightSchedule.findAll({
++      attributes: [
++        'flight_date',
++        [Sequelize.fn('MIN', Sequelize.col('economy_price')), 'lowestPrice']
++      ],
++      where: {
++        flight_date: { [Op.between]: [startDate, endDate] },
++        status: { [Op.ne]: 3 }
++      },
++      include: [{
++        model: Flight,
++        as: 'flight',
++        where: {
++          departure_airport_id: origin.id,
++          arrival_airport_id: dest.id
++        },
++        attributes: []
++      }],
++      group: ['flight_date'],
++      raw: true
++    });
++
++    const priceMap = {};
++    rows.forEach(r => {
++      priceMap[r.flight_date] = parseFloat(r.lowestPrice);
++    });
++
++    const dates = buildDateRange(startDate, endDate);
++    return dates.map(date => ({
++      date,
++      lowestPrice: priceMap[date] ?? null
++    }));
++  }
++
+   // Flight status update
+   async updateFlightStatus(scheduleId, { status, delayMinutes, reason }) {
+     const schedule = await FlightSchedule.findByPk(scheduleId, {
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/package-lock.json" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/package-lock.json"
+index 032de98..9bf83ca 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/package-lock.json"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/package-lock.json"
+@@ -19,7 +19,10 @@
+       },
+       "devDependencies": {
+         "@vitejs/plugin-vue": "^6.0.8",
+-        "vite": "^8.2.0"
++        "@vue/test-utils": "^2.4.6",
++        "happy-dom": "^15.11.3",
++        "vite": "^5.4.0",
++        "vitest": "^2.1.4"
+       }
+     },
+     "node_modules/@babel/helper-string-parser": {
+@@ -86,6 +89,397 @@
+         "vue": "^3.2.0"
+       }
+     },
++    "node_modules/@esbuild/aix-ppc64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/aix-ppc64/-/aix-ppc64-0.21.5.tgz",
++      "integrity": "sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==",
++      "cpu": [
++        "ppc64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "aix"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/android-arm": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/android-arm/-/android-arm-0.21.5.tgz",
++      "integrity": "sha512-vCPvzSjpPHEi1siZdlvAlsPxXl7WbOVUBBAowWug4rJHb68Ox8KualB+1ocNvT5fjv6wpkX6o/iEpbDrf68zcg==",
++      "cpu": [
++        "arm"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "android"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/android-arm64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/android-arm64/-/android-arm64-0.21.5.tgz",
++      "integrity": "sha512-c0uX9VAUBQ7dTDCjq+wdyGLowMdtR/GoC2U5IYk/7D1H1JYC0qseD7+11iMP2mRLN9RcCMRcjC4YMclCzGwS/A==",
++      "cpu": [
++        "arm64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "android"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/android-x64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/android-x64/-/android-x64-0.21.5.tgz",
++      "integrity": "sha512-D7aPRUUNHRBwHxzxRvp856rjUHRFW1SdQATKXH2hqA0kAZb1hKmi02OpYRacl0TxIGz/ZmXWlbZgjwWYaCakTA==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "android"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/darwin-arm64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/darwin-arm64/-/darwin-arm64-0.21.5.tgz",
++      "integrity": "sha512-DwqXqZyuk5AiWWf3UfLiRDJ5EDd49zg6O9wclZ7kUMv2WRFr4HKjXp/5t8JZ11QbQfUS6/cRCKGwYhtNAY88kQ==",
++      "cpu": [
++        "arm64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "darwin"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/darwin-x64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/darwin-x64/-/darwin-x64-0.21.5.tgz",
++      "integrity": "sha512-se/JjF8NlmKVG4kNIuyWMV/22ZaerB+qaSi5MdrXtd6R08kvs2qCN4C09miupktDitvh8jRFflwGFBQcxZRjbw==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "darwin"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/freebsd-arm64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/freebsd-arm64/-/freebsd-arm64-0.21.5.tgz",
++      "integrity": "sha512-5JcRxxRDUJLX8JXp/wcBCy3pENnCgBR9bN6JsY4OmhfUtIHe3ZW0mawA7+RDAcMLrMIZaf03NlQiX9DGyB8h4g==",
++      "cpu": [
++        "arm64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "freebsd"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/freebsd-x64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/freebsd-x64/-/freebsd-x64-0.21.5.tgz",
++      "integrity": "sha512-J95kNBj1zkbMXtHVH29bBriQygMXqoVQOQYA+ISs0/2l3T9/kj42ow2mpqerRBxDJnmkUDCaQT/dfNXWX/ZZCQ==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "freebsd"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/linux-arm": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-arm/-/linux-arm-0.21.5.tgz",
++      "integrity": "sha512-bPb5AHZtbeNGjCKVZ9UGqGwo8EUu4cLq68E95A53KlxAPRmUyYv2D6F0uUI65XisGOL1hBP5mTronbgo+0bFcA==",
++      "cpu": [
++        "arm"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/linux-arm64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-arm64/-/linux-arm64-0.21.5.tgz",
++      "integrity": "sha512-ibKvmyYzKsBeX8d8I7MH/TMfWDXBF3db4qM6sy+7re0YXya+K1cem3on9XgdT2EQGMu4hQyZhan7TeQ8XkGp4Q==",
++      "cpu": [
++        "arm64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/linux-ia32": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-ia32/-/linux-ia32-0.21.5.tgz",
++      "integrity": "sha512-YvjXDqLRqPDl2dvRODYmmhz4rPeVKYvppfGYKSNGdyZkA01046pLWyRKKI3ax8fbJoK5QbxblURkwK/MWY18Tg==",
++      "cpu": [
++        "ia32"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/linux-loong64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-loong64/-/linux-loong64-0.21.5.tgz",
++      "integrity": "sha512-uHf1BmMG8qEvzdrzAqg2SIG/02+4/DHB6a9Kbya0XDvwDEKCoC8ZRWI5JJvNdUjtciBGFQ5PuBlpEOXQj+JQSg==",
++      "cpu": [
++        "loong64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/linux-mips64el": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-mips64el/-/linux-mips64el-0.21.5.tgz",
++      "integrity": "sha512-IajOmO+KJK23bj52dFSNCMsz1QP1DqM6cwLUv3W1QwyxkyIWecfafnI555fvSGqEKwjMXVLokcV5ygHW5b3Jbg==",
++      "cpu": [
++        "mips64el"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/linux-ppc64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-ppc64/-/linux-ppc64-0.21.5.tgz",
++      "integrity": "sha512-1hHV/Z4OEfMwpLO8rp7CvlhBDnjsC3CttJXIhBi+5Aj5r+MBvy4egg7wCbe//hSsT+RvDAG7s81tAvpL2XAE4w==",
++      "cpu": [
++        "ppc64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/linux-riscv64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-riscv64/-/linux-riscv64-0.21.5.tgz",
++      "integrity": "sha512-2HdXDMd9GMgTGrPWnJzP2ALSokE/0O5HhTUvWIbD3YdjME8JwvSCnNGBnTThKGEB91OZhzrJ4qIIxk/SBmyDDA==",
++      "cpu": [
++        "riscv64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/linux-s390x": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-s390x/-/linux-s390x-0.21.5.tgz",
++      "integrity": "sha512-zus5sxzqBJD3eXxwvjN1yQkRepANgxE9lgOW2qLnmr8ikMTphkjgXu1HR01K4FJg8h1kEEDAqDcZQtbrRnB41A==",
++      "cpu": [
++        "s390x"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/linux-x64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/linux-x64/-/linux-x64-0.21.5.tgz",
++      "integrity": "sha512-1rYdTpyv03iycF1+BhzrzQJCdOuAOtaqHTWJZCWvijKD2N5Xu0TtVC8/+1faWqcP9iBCWOmjmhoH94dH82BxPQ==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/netbsd-x64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/netbsd-x64/-/netbsd-x64-0.21.5.tgz",
++      "integrity": "sha512-Woi2MXzXjMULccIwMnLciyZH4nCIMpWQAs049KEeMvOcNADVxo0UBIQPfSmxB3CWKedngg7sWZdLvLczpe0tLg==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "netbsd"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/openbsd-x64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/openbsd-x64/-/openbsd-x64-0.21.5.tgz",
++      "integrity": "sha512-HLNNw99xsvx12lFBUwoT8EVCsSvRNDVxNpjZ7bPn947b8gJPzeHWyNVhFsaerc0n3TsbOINvRP2byTZ5LKezow==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "openbsd"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/sunos-x64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/sunos-x64/-/sunos-x64-0.21.5.tgz",
++      "integrity": "sha512-6+gjmFpfy0BHU5Tpptkuh8+uw3mnrvgs+dSPQXQOv3ekbordwnzTVEb4qnIvQcYXq6gzkyTnoZ9dZG+D4garKg==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "sunos"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/win32-arm64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/win32-arm64/-/win32-arm64-0.21.5.tgz",
++      "integrity": "sha512-Z0gOTd75VvXqyq7nsl93zwahcTROgqvuAcYDUr+vOv8uHhNSKROyU961kgtCD1e95IqPKSQKH7tBTslnS3tA8A==",
++      "cpu": [
++        "arm64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "win32"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/win32-ia32": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/win32-ia32/-/win32-ia32-0.21.5.tgz",
++      "integrity": "sha512-SWXFF1CL2RVNMaVs+BBClwtfZSvDgtL//G/smwAc5oVK/UPu2Gu9tIaRgFmYFFKrmg3SyAjSrElf0TiJ1v8fYA==",
++      "cpu": [
++        "ia32"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "win32"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/@esbuild/win32-x64": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/@esbuild/win32-x64/-/win32-x64-0.21.5.tgz",
++      "integrity": "sha512-tQd/1efJuzPC6rCFwEvLtci/xNFcTZknmXs98FYDfGE4wP9ClFV98nyKrzJKVPMhdDnjzLhdUyMX4PsQAPjwIw==",
++      "cpu": [
++        "x64"
++      ],
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "win32"
++      ],
++      "engines": {
++        "node": ">=12"
++      }
++    },
+     "node_modules/@floating-ui/core": {
+       "version": "1.8.0",
+       "resolved": "https://registry.npmmirror.com/@floating-ui/core/-/core-1.8.0.tgz",
+@@ -117,16 +511,33 @@
+       "integrity": "sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==",
+       "license": "MIT"
+     },
+-    "node_modules/@oxc-project/types": {
+-      "version": "0.148.0",
+-      "resolved": "https://registry.npmmirror.com/@oxc-project/types/-/types-0.148.0.tgz",
+-      "integrity": "sha512-Nm4s/jB+4FpFsPhWGEC4h7rzksesmtnMXomo6rCMcg/b8zLQuOziRgkCS1fxDCXOlJB/6Q8oABOZ/OP6RIPj9A==",
++    "node_modules/@napi-rs/lzma-linux-x64-gnu": {
++      "version": "1.5.1",
++      "resolved": "https://registry.npmmirror.com/@napi-rs/lzma-linux-x64-gnu/-/lzma-linux-x64-gnu-1.5.1.tgz",
++      "integrity": "sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==",
++      "cpu": [
++        "x64"
++      ],
+       "dev": true,
++      "libc": [
++        "glibc"
++      ],
+       "license": "MIT",
+-      "funding": {
+-        "url": "https://github.com/sponsors/oxc-project"
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": "^22.20 || ^24.12 || >=25"
+       }
+     },
++    "node_modules/@one-ini/wasm": {
++      "version": "0.2.1",
++      "resolved": "https://registry.npmmirror.com/@one-ini/wasm/-/wasm-0.2.1.tgz",
++      "integrity": "sha512-TUqERXGNTifZ9y2g3wPxQrw3HpHv/02DsW3D90T9x0hhonrL1ZqpSmNrU2XkoIq0fP1N6gZfVQzy2Fw1ZvGBNg==",
++      "dev": true,
++      "license": "MIT"
++    },
+     "node_modules/@popperjs/core": {
+       "name": "@sxzz/popperjs-es",
+       "version": "2.11.8",
+@@ -138,10 +549,17 @@
+         "url": "https://opencollective.com/popperjs"
+       }
+     },
+-    "node_modules/@rolldown/binding-android-arm-eabi": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-android-arm-eabi/-/binding-android-arm-eabi-1.2.7.tgz",
+-      "integrity": "sha512-EypzgnYCwyVY4NDHKzGmNJT5b+XaQEBniHxsMdeIQLB/tcCzZnhqrzHpZFbX9iaxx+5RiB8caATBtfvZP7zVxQ==",
++    "node_modules/@rolldown/pluginutils": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmmirror.com/@rolldown/pluginutils/-/pluginutils-1.0.1.tgz",
++      "integrity": "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/@rollup/rollup-android-arm-eabi": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-android-arm-eabi/-/rollup-android-arm-eabi-4.63.1.tgz",
++      "integrity": "sha512-UZ8sUxPTiHWYX9QNdJedb1kDZSpS1t/VPWBWGSgqHNi9w3Cu6IXvu2mzbhiTiPvtrqgTQJ+zqiAq2iPIPilpaQ==",
+       "cpu": [
+         "arm"
+       ],
+@@ -150,15 +568,12 @@
+       "optional": true,
+       "os": [
+         "android"
+-      ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      ]
+     },
+-    "node_modules/@rolldown/binding-android-arm64": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-android-arm64/-/binding-android-arm64-1.2.7.tgz",
+-      "integrity": "sha512-l17HE9EweWaqJZhuUuNBN/FzM62xw+DECVnJyvMsxn8vJFAGLy5QfLDoYAcronkAN8VxKZHezDpulHDPx95vFw==",
++    "node_modules/@rollup/rollup-android-arm64": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-android-arm64/-/rollup-android-arm64-4.63.1.tgz",
++      "integrity": "sha512-cQ4nFQABN5cDvDpbvJ7bMStCpnaVxynZrRMfUJYgxcIk9Sh54FIO1vtfkg0B69REjER77ioZ/ov+eAApx/KmLQ==",
+       "cpu": [
+         "arm64"
+       ],
+@@ -167,15 +582,26 @@
+       "optional": true,
+       "os": [
+         "android"
++      ]
++    },
++    "node_modules/@rollup/rollup-darwin-arm64": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-darwin-arm64/-/rollup-darwin-arm64-4.63.1.tgz",
++      "integrity": "sha512-FQNqd1lRy/0QhDk3xeRIkSBiCpXCiDnZO3YLVdcDKN1UBiKToNftCzcXYNLshmPDUMlu2TdeS8tGcsU6f3YF1Q==",
++      "cpu": [
++        "arm64"
+       ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "darwin"
++      ]
+     },
+-    "node_modules/@rolldown/binding-darwin-x64": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-darwin-x64/-/binding-darwin-x64-1.2.7.tgz",
+-      "integrity": "sha512-/WPripjtiAIZ2tWY7ddijORT0Ujg87wxWW/qcoFVCKAWVDPhtY0xr7Dj0M3GyNGz60jGwTElhro/mkF9dT7dDQ==",
++    "node_modules/@rollup/rollup-darwin-x64": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-darwin-x64/-/rollup-darwin-x64-4.63.1.tgz",
++      "integrity": "sha512-pvD16V939D3CloK0+qikpGaxiPrDUXTe7Y5cWOMkMSy7m1cawa8EGy/kXYi/G/cKAC4HDAbSnzCIk1WmsoOKXg==",
+       "cpu": [
+         "x64"
+       ],
+@@ -184,15 +610,26 @@
+       "optional": true,
+       "os": [
+         "darwin"
++      ]
++    },
++    "node_modules/@rollup/rollup-freebsd-arm64": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-freebsd-arm64/-/rollup-freebsd-arm64-4.63.1.tgz",
++      "integrity": "sha512-pcFGeL2345VwdTnJhA6zLbew+YgWB0qBG2+dMtXjCicf6+rm6kO6cOoh5VnTe0ZMrMRgRyuHmCJxZWrIdzYuOw==",
++      "cpu": [
++        "arm64"
+       ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "freebsd"
++      ]
+     },
+-    "node_modules/@rolldown/binding-freebsd-x64": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-freebsd-x64/-/binding-freebsd-x64-1.2.7.tgz",
+-      "integrity": "sha512-14DI4NcqpvbICxSnGLx3PmtDaWqRP/KGSGb6C+JLLVPeZRl6dKdHba3pGsqT3vpdTqhEYIPG0MMQ8c0xYqoJxA==",
++    "node_modules/@rollup/rollup-freebsd-x64": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-freebsd-x64/-/rollup-freebsd-x64-4.63.1.tgz",
++      "integrity": "sha512-mRJlqSRulVzcKq/LKA6ICSIc3K/l4fzlVn/gePn2nXIHy8seRi5z/eeRE0d/XMBxcMldiXtQTSpRj0tkkC3g8Q==",
+       "cpu": [
+         "x64"
+       ],
+@@ -201,32 +638,46 @@
+       "optional": true,
+       "os": [
+         "freebsd"
+-      ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      ]
+     },
+-    "node_modules/@rolldown/binding-linux-arm-gnueabihf": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-linux-arm-gnueabihf/-/binding-linux-arm-gnueabihf-1.2.7.tgz",
+-      "integrity": "sha512-bxrWIRvHWQvbJwi+VIie/kDJmQxcNE6xxWwZdqF/ExVAigtHkv54WTLQPb+QsZdnFy18fg7JPfWGL0RH6vwIlQ==",
++    "node_modules/@rollup/rollup-linux-arm-gnueabihf": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-arm-gnueabihf/-/rollup-linux-arm-gnueabihf-4.63.1.tgz",
++      "integrity": "sha512-YDUNvVM85TI3g/1OpnqKP1h4NeW/j64DfWMf+G3M809xNk1bJSnpFp4sh83NpmVE5DXnkh8ULor4LTVZKoYLHw==",
+       "cpu": [
+         "arm"
+       ],
+       "dev": true,
++      "libc": [
++        "glibc"
++      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+         "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-arm-musleabihf": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-arm-musleabihf/-/rollup-linux-arm-musleabihf-4.63.1.tgz",
++      "integrity": "sha512-7Mcn71p9ZuQFAj+h+dhQXy/yeLePRS2yKRnmW1DijA9thKO5qap0GNOIQK4yQ6iP3SU0Mrb/yWo8h8vgRba8lw==",
++      "cpu": [
++        "arm"
+       ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      "dev": true,
++      "libc": [
++        "musl"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
+     },
+-    "node_modules/@rolldown/binding-linux-arm64-gnu": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-linux-arm64-gnu/-/binding-linux-arm64-gnu-1.2.7.tgz",
+-      "integrity": "sha512-toOY2BChBZyuxU7OYX6Tn389di4IzAqPTycVcci0O7FSfBqzRB3RZn+K5Is6ANf4tmgRd/K1yZTsNTXbkXsnLg==",
++    "node_modules/@rollup/rollup-linux-arm64-gnu": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-arm64-gnu/-/rollup-linux-arm64-gnu-4.63.1.tgz",
++      "integrity": "sha512-4YiLQTX6U4CSl0L9cluep9A9W6UmTfqBDc2/CH6wlu54pl4E7Jn3cOD8oxzvBDEGk/JMKgJ47C8g+radF7mwvg==",
+       "cpu": [
+         "arm64"
+       ],
+@@ -238,15 +689,12 @@
+       "optional": true,
+       "os": [
+         "linux"
+-      ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      ]
+     },
+-    "node_modules/@rolldown/binding-linux-arm64-musl": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-linux-arm64-musl/-/binding-linux-arm64-musl-1.2.7.tgz",
+-      "integrity": "sha512-lAIXTH/aiLRLxsTgQvfhjo4K1ydWIp00+V0voOr9beb/9ZmkUFrSIb03dXNFRgMNvkE6oGsF10ioQ6UsI+vS5Q==",
++    "node_modules/@rollup/rollup-linux-arm64-musl": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-arm64-musl/-/rollup-linux-arm64-musl-4.63.1.tgz",
++      "integrity": "sha512-2ra8F7w8OquwZN9z2/fKFnli69wa8PLwaVzRMIPGb13ByMJwC28Fbp8YcVGoUhlYMTt7j5j9bNgpysrN2UM+vw==",
+       "cpu": [
+         "arm64"
+       ],
+@@ -258,15 +706,46 @@
+       "optional": true,
+       "os": [
+         "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-loong64-gnu": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-loong64-gnu/-/rollup-linux-loong64-gnu-4.63.1.tgz",
++      "integrity": "sha512-Sy20ncyhjmBP0Ml+UvQbimjlk6VFgjW5uNP+qqwHB00mTE8Bl2C1TuHTlRwK2YoXeZbee5lP2XevBWVkAQAtSQ==",
++      "cpu": [
++        "loong64"
+       ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      "dev": true,
++      "libc": [
++        "glibc"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-loong64-musl": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-loong64-musl/-/rollup-linux-loong64-musl-4.63.1.tgz",
++      "integrity": "sha512-noITLp8oNjYliPnGWmLyelIHwULGqbHloQHGw1rtxbWhTuWooRpnZarZQJ1y9EUC4szuCusCc+HEpUtxpIwYvA==",
++      "cpu": [
++        "loong64"
++      ],
++      "dev": true,
++      "libc": [
++        "musl"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
+     },
+-    "node_modules/@rolldown/binding-linux-ppc64-gnu": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-linux-ppc64-gnu/-/binding-linux-ppc64-gnu-1.2.7.tgz",
+-      "integrity": "sha512-kdnwS28Pkenp/mZMRwjXXXwxQ7pIsm+bF919LUK93BOyhcLsrVKdP2p9fxpiPNPAbNuch8ypQt0pm2P2LYCAGg==",
++    "node_modules/@rollup/rollup-linux-ppc64-gnu": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-ppc64-gnu/-/rollup-linux-ppc64-gnu-4.63.1.tgz",
++      "integrity": "sha512-hlxxXd+F1mWiAcaFR7Sv9ZQT6m6UfI8+Vy/kFJzztq2pDMU/0wZ9sish0iszNZvsQDo8Gc0i5yuFEOz5dDf6fA==",
+       "cpu": [
+         "ppc64"
+       ],
+@@ -278,17 +757,31 @@
+       "optional": true,
+       "os": [
+         "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-ppc64-musl": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-ppc64-musl/-/rollup-linux-ppc64-musl-4.63.1.tgz",
++      "integrity": "sha512-EF7OpqQTQ/BvGqLzUi4rEHuagCV9MugAUXSHemwPW5vxZ75RR+jxO/2j95Ph2dalMpFHSVECjRoioHZgA9zOYA==",
++      "cpu": [
++        "ppc64"
+       ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      "dev": true,
++      "libc": [
++        "musl"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
+     },
+-    "node_modules/@rolldown/binding-linux-s390x-gnu": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-linux-s390x-gnu/-/binding-linux-s390x-gnu-1.2.7.tgz",
+-      "integrity": "sha512-516OdsyLdr5E65paF3yBF55t8mfm9+gmtCsK3xI7XKXIT7EfRlHhxL8K/NR6Hu8BWSgF5+1w74lTL0+nxcc8Qw==",
++    "node_modules/@rollup/rollup-linux-riscv64-gnu": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-riscv64-gnu/-/rollup-linux-riscv64-gnu-4.63.1.tgz",
++      "integrity": "sha512-wQO3JesW9PRkwlabQ27y7sPfVOOTLRG73I4F2UYHG5PXun3J9U3y+b7ezVKSYbsvSKGQ1k1cq8Qlun4C9kLt3w==",
+       "cpu": [
+-        "s390x"
++        "riscv64"
+       ],
+       "dev": true,
+       "libc": [
+@@ -298,17 +791,31 @@
+       "optional": true,
+       "os": [
+         "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-riscv64-musl": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-riscv64-musl/-/rollup-linux-riscv64-musl-4.63.1.tgz",
++      "integrity": "sha512-ouAGwhO6wHRXdnOVCOsB0tRFkA7nhNB2Nwax6oECXN0YiN8EYUTBAOudADOB1PI+yDL61TeNx/u7MVCzksNbkQ==",
++      "cpu": [
++        "riscv64"
+       ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      "dev": true,
++      "libc": [
++        "musl"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
+     },
+-    "node_modules/@rolldown/binding-linux-x64-gnu": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-linux-x64-gnu/-/binding-linux-x64-gnu-1.2.7.tgz",
+-      "integrity": "sha512-r8/z8n7GFaYRln3xmP1Cxy0HH/HLM0uBUPkEuSVEfKGDA89M0FsZRZJRSwe/tJjRx+fpH/gjorfhB8tmEbSFLA==",
++    "node_modules/@rollup/rollup-linux-s390x-gnu": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-s390x-gnu/-/rollup-linux-s390x-gnu-4.63.1.tgz",
++      "integrity": "sha512-q2R38Sn+1J8RxhfJ+T54wSWmyKXWec+9jgDfqO2AtArEqHO5R2aeayp5H5OYLr5UYDVGsVaZPEFUooMhYCdz5A==",
+       "cpu": [
+-        "x64"
++        "s390x"
+       ],
+       "dev": true,
+       "libc": [
+@@ -318,15 +825,29 @@
+       "optional": true,
+       "os": [
+         "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-linux-x64-gnu": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-4.63.1.tgz",
++      "integrity": "sha512-gfI5T24WLLuFfSKw7Go/zDXjAAV0fny0swTaDv+WjK7vqcw4cRhFfdsyKL1n+ukI+ooBxn3bVQnyrn06WpI50w==",
++      "cpu": [
++        "x64"
+       ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      "dev": true,
++      "libc": [
++        "glibc"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ]
+     },
+-    "node_modules/@rolldown/binding-linux-x64-musl": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-linux-x64-musl/-/binding-linux-x64-musl-1.2.7.tgz",
+-      "integrity": "sha512-pAsE8iiDxUg1xBqdhrTfg45AVDVpirjz00sblEYClGNNcMnDb+e8beQgqIAw6LvauX/APvgxUnwrgun/YYGBhw==",
++    "node_modules/@rollup/rollup-linux-x64-musl": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-linux-x64-musl/-/rollup-linux-x64-musl-4.63.1.tgz",
++      "integrity": "sha512-4h6XqthmB4Hspji84wvgk+ElodTsGj+dbZqHJHHtKxj4mYq0ANSEEPX9ys3moJueqsRjwpaJYH7874Itwnj2ow==",
+       "cpu": [
+         "x64"
+       ],
+@@ -338,15 +859,26 @@
+       "optional": true,
+       "os": [
+         "linux"
++      ]
++    },
++    "node_modules/@rollup/rollup-openbsd-x64": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-openbsd-x64/-/rollup-openbsd-x64-4.63.1.tgz",
++      "integrity": "sha512-dlfCOa87o1VAYegLQ9EKilx2JCeRofiyPGhTCmqnuXZ6bMPiycO1rq1+sKoulAp7pGLIsTIw+1x5R+zgh5LhhA==",
++      "cpu": [
++        "x64"
+       ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "openbsd"
++      ]
+     },
+-    "node_modules/@rolldown/binding-openharmony-arm64": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-openharmony-arm64/-/binding-openharmony-arm64-1.2.7.tgz",
+-      "integrity": "sha512-lTcIYmmnQQA8Or/2DatS6oSqcdLHvendjS+zLu+FwgToynWMRSmQdpM65fTANJgIS4mjbMOo5KT2lnT9SAb96w==",
++    "node_modules/@rollup/rollup-openharmony-arm64": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-openharmony-arm64/-/rollup-openharmony-arm64-4.63.1.tgz",
++      "integrity": "sha512-cjkLbOlfcm3QGhMM1J5zaZjsw1GggbN6rw9UTSSRrPrR1KkcXnN7Uq9rPw34xImQ9VOY9GN+6u2Zj80B9ptkcw==",
+       "cpu": [
+         "arm64"
+       ],
+@@ -355,15 +887,12 @@
+       "optional": true,
+       "os": [
+         "openharmony"
+-      ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      ]
+     },
+-    "node_modules/@rolldown/binding-win32-arm64-msvc": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-win32-arm64-msvc/-/binding-win32-arm64-msvc-1.2.7.tgz",
+-      "integrity": "sha512-e3Gu3WxbNk/UqQhxqU7YIYO+9ZBvWNz3U+h/qRFosscMFzdRPbXYSaSWgSnklv2fz1TgzBTcti2z35c/7irsHw==",
++    "node_modules/@rollup/rollup-win32-arm64-msvc": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-win32-arm64-msvc/-/rollup-win32-arm64-msvc-4.63.1.tgz",
++      "integrity": "sha512-Li1KdUnWGE4N3e1F/B4RTB1ms+nG4WBgjByO46pkeBVX/2UBsY53xf5vK9WygVmnH3RwncIST7lkSdLSY6P9lg==",
+       "cpu": [
+         "arm64"
+       ],
+@@ -372,15 +901,26 @@
+       "optional": true,
+       "os": [
+         "win32"
++      ]
++    },
++    "node_modules/@rollup/rollup-win32-ia32-msvc": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-win32-ia32-msvc/-/rollup-win32-ia32-msvc-4.63.1.tgz",
++      "integrity": "sha512-t4ZYOSoLTgwhuFMrmTMLx/+i1DQVK7HYqMc6kY46EApwi8X0nIVphzdNoThU3xt6n+N5urG1/gxBdCaKDLavfg==",
++      "cpu": [
++        "ia32"
+       ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "win32"
++      ]
+     },
+-    "node_modules/@rolldown/binding-win32-x64-msvc": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/binding-win32-x64-msvc/-/binding-win32-x64-msvc-1.2.7.tgz",
+-      "integrity": "sha512-W/jg5qoRSqjsEv0+dZi4e687mcHqmVuU0P4fK6qS/xjetW2Gmc1W8j//z5nAeNcC8Ttm0hV46IjcYeuVwYhuiw==",
++    "node_modules/@rollup/rollup-win32-x64-gnu": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-win32-x64-gnu/-/rollup-win32-x64-gnu-4.63.1.tgz",
++      "integrity": "sha512-RgroPfMmKlD1RzSDxvwgcPiy2HNQKoYV7OmwIXDsk73uKW5t6B/V8KIy27SMv/FNXFo/oSBtWc9J0X7t91ezZg==",
+       "cpu": [
+         "x64"
+       ],
+@@ -389,15 +929,26 @@
+       "optional": true,
+       "os": [
+         "win32"
++      ]
++    },
++    "node_modules/@rollup/rollup-win32-x64-msvc": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/@rollup/rollup-win32-x64-msvc/-/rollup-win32-x64-msvc-4.63.1.tgz",
++      "integrity": "sha512-at8QVep6S3h5Y6gSbdGU06bRY5WJkf6WUduM9YtvYMbYhB1MOFfUgc6kehitQXzOtMSaT70q7f9ydPhpqu821w==",
++      "cpu": [
++        "x64"
+       ],
+-      "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
+-      }
++      "dev": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "win32"
++      ]
+     },
+-    "node_modules/@rolldown/pluginutils": {
+-      "version": "1.0.1",
+-      "resolved": "https://registry.npmmirror.com/@rolldown/pluginutils/-/pluginutils-1.0.1.tgz",
+-      "integrity": "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==",
++    "node_modules/@types/estree": {
++      "version": "1.0.9",
++      "resolved": "https://registry.npmmirror.com/@types/estree/-/estree-1.0.9.tgz",
++      "integrity": "sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==",
+       "dev": true,
+       "license": "MIT"
+     },
+@@ -439,6 +990,129 @@
+         "vue": "^3.2.25"
+       }
+     },
++    "node_modules/@vitest/expect": {
++      "version": "2.1.9",
++      "resolved": "https://registry.npmmirror.com/@vitest/expect/-/expect-2.1.9.tgz",
++      "integrity": "sha512-UJCIkTBenHeKT1TTlKMJWy1laZewsRIzYighyYiJKZreqtdxSos/S1t+ktRMQWu2CKqaarrkeszJx1cgC5tGZw==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@vitest/spy": "2.1.9",
++        "@vitest/utils": "2.1.9",
++        "chai": "^5.1.2",
++        "tinyrainbow": "^1.2.0"
++      },
++      "funding": {
++        "url": "https://opencollective.com/vitest"
++      }
++    },
++    "node_modules/@vitest/mocker": {
++      "version": "2.1.9",
++      "resolved": "https://registry.npmmirror.com/@vitest/mocker/-/mocker-2.1.9.tgz",
++      "integrity": "sha512-tVL6uJgoUdi6icpxmdrn5YNo3g3Dxv+IHJBr0GXHaEdTcw3F+cPKnsXFhli6nO+f/6SDKPHEK1UN+k+TQv0Ehg==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@vitest/spy": "2.1.9",
++        "estree-walker": "^3.0.3",
++        "magic-string": "^0.30.12"
++      },
++      "funding": {
++        "url": "https://opencollective.com/vitest"
++      },
++      "peerDependencies": {
++        "msw": "^2.4.9",
++        "vite": "^5.0.0"
++      },
++      "peerDependenciesMeta": {
++        "msw": {
++          "optional": true
++        },
++        "vite": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/@vitest/mocker/node_modules/estree-walker": {
++      "version": "3.0.3",
++      "resolved": "https://registry.npmmirror.com/estree-walker/-/estree-walker-3.0.3.tgz",
++      "integrity": "sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@types/estree": "^1.0.0"
++      }
++    },
++    "node_modules/@vitest/pretty-format": {
++      "version": "2.1.9",
++      "resolved": "https://registry.npmmirror.com/@vitest/pretty-format/-/pretty-format-2.1.9.tgz",
++      "integrity": "sha512-KhRIdGV2U9HOUzxfiHmY8IFHTdqtOhIzCpd8WRdJiE7D/HUcZVD0EgQCVjm+Q9gkUXWgBvMmTtZgIG48wq7sOQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "tinyrainbow": "^1.2.0"
++      },
++      "funding": {
++        "url": "https://opencollective.com/vitest"
++      }
++    },
++    "node_modules/@vitest/runner": {
++      "version": "2.1.9",
++      "resolved": "https://registry.npmmirror.com/@vitest/runner/-/runner-2.1.9.tgz",
++      "integrity": "sha512-ZXSSqTFIrzduD63btIfEyOmNcBmQvgOVsPNPe0jYtESiXkhd8u2erDLnMxmGrDCwHCCHE7hxwRDCT3pt0esT4g==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@vitest/utils": "2.1.9",
++        "pathe": "^1.1.2"
++      },
++      "funding": {
++        "url": "https://opencollective.com/vitest"
++      }
++    },
++    "node_modules/@vitest/snapshot": {
++      "version": "2.1.9",
++      "resolved": "https://registry.npmmirror.com/@vitest/snapshot/-/snapshot-2.1.9.tgz",
++      "integrity": "sha512-oBO82rEjsxLNJincVhLhaxxZdEtV0EFHMK5Kmx5sJ6H9L183dHECjiefOAdnqpIgT5eZwT04PoggUnW88vOBNQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@vitest/pretty-format": "2.1.9",
++        "magic-string": "^0.30.12",
++        "pathe": "^1.1.2"
++      },
++      "funding": {
++        "url": "https://opencollective.com/vitest"
++      }
++    },
++    "node_modules/@vitest/spy": {
++      "version": "2.1.9",
++      "resolved": "https://registry.npmmirror.com/@vitest/spy/-/spy-2.1.9.tgz",
++      "integrity": "sha512-E1B35FwzXXTs9FHNK6bDszs7mtydNi5MIfUWpceJ8Xbfb1gBMscAnwLbEu+B44ed6W3XjL9/ehLPHR1fkf1KLQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "tinyspy": "^3.0.2"
++      },
++      "funding": {
++        "url": "https://opencollective.com/vitest"
++      }
++    },
++    "node_modules/@vitest/utils": {
++      "version": "2.1.9",
++      "resolved": "https://registry.npmmirror.com/@vitest/utils/-/utils-2.1.9.tgz",
++      "integrity": "sha512-v0psaMSkNJ3A2NMrUEHFRzJtDPFn+/VWZ5WxImB21T9fjucJRmS7xCS3ppEnARb9y11OAzaD+P2Ps+b+BGX5iQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@vitest/pretty-format": "2.1.9",
++        "loupe": "^3.1.2",
++        "tinyrainbow": "^1.2.0"
++      },
++      "funding": {
++        "url": "https://opencollective.com/vitest"
++      }
++    },
+     "node_modules/@vue/compiler-core": {
+       "version": "3.5.42",
+       "resolved": "https://registry.npmmirror.com/@vue/compiler-core/-/compiler-core-3.5.42.tgz",
+@@ -543,6 +1217,27 @@
+       "integrity": "sha512-2rPxex1jQf4jvl9MOHl6YaXCPcrNqz/FstMOEh3QWY+/OME9nQTvl9WYeCwhW7AFjaR0SnngZGlp/wkR6rkI6g==",
+       "license": "MIT"
+     },
++    "node_modules/@vue/test-utils": {
++      "version": "2.5.0",
++      "resolved": "https://registry.npmmirror.com/@vue/test-utils/-/test-utils-2.5.0.tgz",
++      "integrity": "sha512-6Clu5EKR/r6cDPYrKsu+8wenciWJJ3rhS9OEGsfDlZeZIhlJeEPGIZQHxE4lHRJCzPSq3EWMsFxQUqCvrbHQuQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "js-beautify": "^2.0.0",
++        "vue-component-type-helpers": "^3.0.0"
++      },
++      "peerDependencies": {
++        "@vue/compiler-dom": "3.x",
++        "@vue/server-renderer": "3.x",
++        "vue": "3.x"
++      },
++      "peerDependenciesMeta": {
++        "@vue/server-renderer": {
++          "optional": true
++        }
++      }
++    },
+     "node_modules/@vueuse/core": {
+       "version": "14.4.0",
+       "resolved": "https://registry.npmmirror.com/@vueuse/core/-/core-14.4.0.tgz",
+@@ -581,6 +1276,16 @@
+         "vue": "^3.5.0"
+       }
+     },
++    "node_modules/abbrev": {
++      "version": "5.0.0",
++      "resolved": "https://registry.npmmirror.com/abbrev/-/abbrev-5.0.0.tgz",
++      "integrity": "sha512-/XrFJgzQQQHpti1raDJC6m4ws6aNktmjBlhk8Fdlk7LwCEuDoieEJJY9OFHjfiFJFFRM2tK+Ky/IsfbbmlMu1w==",
++      "dev": true,
++      "license": "ISC",
++      "engines": {
++        "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
++      }
++    },
+     "node_modules/agent-base": {
+       "version": "6.0.2",
+       "resolved": "https://registry.npmmirror.com/agent-base/-/agent-base-6.0.2.tgz",
+@@ -593,6 +1298,16 @@
+         "node": ">= 6.0.0"
+       }
+     },
++    "node_modules/assertion-error": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmmirror.com/assertion-error/-/assertion-error-2.0.1.tgz",
++      "integrity": "sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=12"
++      }
++    },
+     "node_modules/async-validator": {
+       "version": "4.2.5",
+       "resolved": "https://registry.npmmirror.com/async-validator/-/async-validator-4.2.5.tgz",
+@@ -617,6 +1332,39 @@
+         "proxy-from-env": "^2.1.0"
+       }
+     },
++    "node_modules/balanced-match": {
++      "version": "4.0.4",
++      "resolved": "https://registry.npmmirror.com/balanced-match/-/balanced-match-4.0.4.tgz",
++      "integrity": "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": "18 || 20 || >=22"
++      }
++    },
++    "node_modules/brace-expansion": {
++      "version": "5.0.9",
++      "resolved": "https://registry.npmmirror.com/brace-expansion/-/brace-expansion-5.0.9.tgz",
++      "integrity": "sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "balanced-match": "^4.0.2"
++      },
++      "engines": {
++        "node": "20 || >=22"
++      }
++    },
++    "node_modules/cac": {
++      "version": "6.7.14",
++      "resolved": "https://registry.npmmirror.com/cac/-/cac-6.7.14.tgz",
++      "integrity": "sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=8"
++      }
++    },
+     "node_modules/call-bind-apply-helpers": {
+       "version": "1.0.2",
+       "resolved": "https://registry.npmmirror.com/call-bind-apply-helpers/-/call-bind-apply-helpers-1.0.2.tgz",
+@@ -630,6 +1378,33 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/chai": {
++      "version": "5.3.3",
++      "resolved": "https://registry.npmmirror.com/chai/-/chai-5.3.3.tgz",
++      "integrity": "sha512-4zNhdJD/iOjSH0A05ea+Ke6MU5mmpQcbQsSOkgdaUMJ9zTlDTD/GYlwohmIE2u0gaxHYiVHEn1Fw9mZ/ktJWgw==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "assertion-error": "^2.0.1",
++        "check-error": "^2.1.1",
++        "deep-eql": "^5.0.1",
++        "loupe": "^3.1.0",
++        "pathval": "^2.0.0"
++      },
++      "engines": {
++        "node": ">=18"
++      }
++    },
++    "node_modules/check-error": {
++      "version": "2.1.3",
++      "resolved": "https://registry.npmmirror.com/check-error/-/check-error-2.1.3.tgz",
++      "integrity": "sha512-PAJdDJusoxnwm1VwW07VWwUN1sl7smmC3OKggvndJFadxxDRyFJBX/ggnu/KE4kQAB7a3Dp8f/YXC1FlUprWmA==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">= 16"
++      }
++    },
+     "node_modules/combined-stream": {
+       "version": "1.0.8",
+       "resolved": "https://registry.npmmirror.com/combined-stream/-/combined-stream-1.0.8.tgz",
+@@ -642,6 +1417,27 @@
+         "node": ">= 0.8"
+       }
+     },
++    "node_modules/commander": {
++      "version": "14.0.3",
++      "resolved": "https://registry.npmmirror.com/commander/-/commander-14.0.3.tgz",
++      "integrity": "sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=20"
++      }
++    },
++    "node_modules/config-chain": {
++      "version": "1.1.13",
++      "resolved": "https://registry.npmmirror.com/config-chain/-/config-chain-1.1.13.tgz",
++      "integrity": "sha512-qj+f8APARXHrM0hraqXYb2/bOVSV4PvJQlNZ/DVj0QrmNM2q2euizkeuVckQ57J+W0mRH6Hvi+k50M4Jul2VRQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "ini": "^1.3.4",
++        "proto-list": "~1.2.1"
++      }
++    },
+     "node_modules/csstype": {
+       "version": "3.2.3",
+       "resolved": "https://registry.npmmirror.com/csstype/-/csstype-3.2.3.tgz",
+@@ -671,6 +1467,16 @@
+         }
+       }
+     },
++    "node_modules/deep-eql": {
++      "version": "5.0.2",
++      "resolved": "https://registry.npmmirror.com/deep-eql/-/deep-eql-5.0.2.tgz",
++      "integrity": "sha512-h5k/5U50IJJFpzfL6nO9jaaumfjO/f2NjK/oYB2Djzm4p9L+3T9qWpZqZ2hAbLPuuYq9wrU08WQyBTL5GbPk5Q==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=6"
++      }
++    },
+     "node_modules/delayed-stream": {
+       "version": "1.0.0",
+       "resolved": "https://registry.npmmirror.com/delayed-stream/-/delayed-stream-1.0.0.tgz",
+@@ -680,16 +1486,6 @@
+         "node": ">=0.4.0"
+       }
+     },
+-    "node_modules/detect-libc": {
+-      "version": "2.1.2",
+-      "resolved": "https://registry.npmmirror.com/detect-libc/-/detect-libc-2.1.2.tgz",
+-      "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==",
+-      "dev": true,
+-      "license": "Apache-2.0",
+-      "engines": {
+-        "node": ">=8"
+-      }
+-    },
+     "node_modules/dunder-proto": {
+       "version": "1.0.1",
+       "resolved": "https://registry.npmmirror.com/dunder-proto/-/dunder-proto-1.0.1.tgz",
+@@ -714,6 +1510,25 @@
+         "zrender": "5.6.1"
+       }
+     },
++    "node_modules/editorconfig": {
++      "version": "3.0.2",
++      "resolved": "https://registry.npmmirror.com/editorconfig/-/editorconfig-3.0.2.tgz",
++      "integrity": "sha512-T0ix8GhtxyKVfUFEcvdNDt3YGqlwkFHbD4/5bgFUDgFmxhI/cSRAeJ87/Sz//Cq8Eam6JX/e23RkoFO71P7aAA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@one-ini/wasm": "0.2.1",
++        "commander": "^14.0.3",
++        "minimatch": "~10.2.4",
++        "semver": "^7.7.4"
++      },
++      "bin": {
++        "editorconfig": "bin/editorconfig"
++      },
++      "engines": {
++        "node": ">=20"
++      }
++    },
+     "node_modules/element-plus": {
+       "version": "2.14.5",
+       "resolved": "https://registry.npmmirror.com/element-plus/-/element-plus-2.14.5.tgz",
+@@ -770,6 +1585,13 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/es-module-lexer": {
++      "version": "1.7.0",
++      "resolved": "https://registry.npmmirror.com/es-module-lexer/-/es-module-lexer-1.7.0.tgz",
++      "integrity": "sha512-jEQoCwk8hyb2AZziIOLhDqpm5+2ww5uIE6lkO/6jcOCusfk6LhMHpXXfBLXTZ7Ydyt0j4VoUQv6uGNYbdW+kBA==",
++      "dev": true,
++      "license": "MIT"
++    },
+     "node_modules/es-object-atoms": {
+       "version": "1.1.2",
+       "resolved": "https://registry.npmmirror.com/es-object-atoms/-/es-object-atoms-1.1.2.tgz",
+@@ -797,28 +1619,59 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/esbuild": {
++      "version": "0.21.5",
++      "resolved": "https://registry.npmmirror.com/esbuild/-/esbuild-0.21.5.tgz",
++      "integrity": "sha512-mg3OPMV4hXywwpoDxu3Qda5xCKQi+vCTZq8S9J/EpkhB2HzKXq4SNFZE3+NK93JYxc8VMSep+lOUSC/RVKaBqw==",
++      "dev": true,
++      "hasInstallScript": true,
++      "license": "MIT",
++      "bin": {
++        "esbuild": "bin/esbuild"
++      },
++      "engines": {
++        "node": ">=12"
++      },
++      "optionalDependencies": {
++        "@esbuild/aix-ppc64": "0.21.5",
++        "@esbuild/android-arm": "0.21.5",
++        "@esbuild/android-arm64": "0.21.5",
++        "@esbuild/android-x64": "0.21.5",
++        "@esbuild/darwin-arm64": "0.21.5",
++        "@esbuild/darwin-x64": "0.21.5",
++        "@esbuild/freebsd-arm64": "0.21.5",
++        "@esbuild/freebsd-x64": "0.21.5",
++        "@esbuild/linux-arm": "0.21.5",
++        "@esbuild/linux-arm64": "0.21.5",
++        "@esbuild/linux-ia32": "0.21.5",
++        "@esbuild/linux-loong64": "0.21.5",
++        "@esbuild/linux-mips64el": "0.21.5",
++        "@esbuild/linux-ppc64": "0.21.5",
++        "@esbuild/linux-riscv64": "0.21.5",
++        "@esbuild/linux-s390x": "0.21.5",
++        "@esbuild/linux-x64": "0.21.5",
++        "@esbuild/netbsd-x64": "0.21.5",
++        "@esbuild/openbsd-x64": "0.21.5",
++        "@esbuild/sunos-x64": "0.21.5",
++        "@esbuild/win32-arm64": "0.21.5",
++        "@esbuild/win32-ia32": "0.21.5",
++        "@esbuild/win32-x64": "0.21.5"
++      }
++    },
+     "node_modules/estree-walker": {
+       "version": "2.0.2",
+       "resolved": "https://registry.npmmirror.com/estree-walker/-/estree-walker-2.0.2.tgz",
+       "integrity": "sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w==",
+       "license": "MIT"
+     },
+-    "node_modules/fdir": {
+-      "version": "6.5.0",
+-      "resolved": "https://registry.npmmirror.com/fdir/-/fdir-6.5.0.tgz",
+-      "integrity": "sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==",
++    "node_modules/expect-type": {
++      "version": "1.4.0",
++      "resolved": "https://registry.npmmirror.com/expect-type/-/expect-type-1.4.0.tgz",
++      "integrity": "sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==",
+       "dev": true,
+-      "license": "MIT",
++      "license": "Apache-2.0",
+       "engines": {
+         "node": ">=12.0.0"
+-      },
+-      "peerDependencies": {
+-        "picomatch": "^3 || ^4"
+-      },
+-      "peerDependenciesMeta": {
+-        "picomatch": {
+-          "optional": true
+-        }
+       }
+     },
+     "node_modules/follow-redirects": {
+@@ -918,38 +1771,29 @@
+         "node": ">= 0.4"
+       }
+     },
+-    "node_modules/gopd": {
+-      "version": "1.2.0",
+-      "resolved": "https://registry.npmmirror.com/gopd/-/gopd-1.2.0.tgz",
+-      "integrity": "sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==",
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">= 0.4"
++    "node_modules/glob": {
++      "version": "13.0.6",
++      "resolved": "https://registry.npmmirror.com/glob/-/glob-13.0.6.tgz",
++      "integrity": "sha512-Wjlyrolmm8uDpm/ogGyXZXb1Z+Ca2B8NbJwqBVg0axK9GbBeoS7yGV6vjXnYdGm6X53iehEuxxbyiKp8QmN4Vw==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "dependencies": {
++        "minimatch": "^10.2.2",
++        "minipass": "^7.1.3",
++        "path-scurry": "^2.0.2"
+       },
+-      "funding": {
+-        "url": "https://github.com/sponsors/ljharb"
+-      }
+-    },
+-    "node_modules/has-symbols": {
+-      "version": "1.1.0",
+-      "resolved": "https://registry.npmmirror.com/has-symbols/-/has-symbols-1.1.0.tgz",
+-      "integrity": "sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==",
+-      "license": "MIT",
+       "engines": {
+-        "node": ">= 0.4"
++        "node": "18 || 20 || >=22"
+       },
+       "funding": {
+-        "url": "https://github.com/sponsors/ljharb"
++        "url": "https://github.com/sponsors/isaacs"
+       }
+     },
+-    "node_modules/has-tostringtag": {
+-      "version": "1.0.2",
+-      "resolved": "https://registry.npmmirror.com/has-tostringtag/-/has-tostringtag-1.0.2.tgz",
+-      "integrity": "sha512-NqADB8VjPFLM2V0VvHUewwwsw0ZWBaIdgo+ieHtK3hasLz4qeCRjYcqfB6AQrBggRKppKF8L52/VqdVsO47Dlw==",
++    "node_modules/gopd": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmmirror.com/gopd/-/gopd-1.2.0.tgz",
++      "integrity": "sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==",
+       "license": "MIT",
+-      "dependencies": {
+-        "has-symbols": "^1.0.3"
+-      },
+       "engines": {
+         "node": ">= 0.4"
+       },
+@@ -957,304 +1801,122 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
+-    "node_modules/hasown": {
+-      "version": "2.0.4",
+-      "resolved": "https://registry.npmmirror.com/hasown/-/hasown-2.0.4.tgz",
+-      "integrity": "sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "function-bind": "^1.1.2"
+-      },
+-      "engines": {
+-        "node": ">= 0.4"
+-      }
+-    },
+-    "node_modules/https-proxy-agent": {
+-      "version": "5.0.1",
+-      "resolved": "https://registry.npmmirror.com/https-proxy-agent/-/https-proxy-agent-5.0.1.tgz",
+-      "integrity": "sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "agent-base": "6",
+-        "debug": "4"
+-      },
+-      "engines": {
+-        "node": ">= 6"
+-      }
+-    },
+-    "node_modules/lightningcss": {
+-      "version": "1.33.0",
+-      "resolved": "https://registry.npmmirror.com/lightningcss/-/lightningcss-1.33.0.tgz",
+-      "integrity": "sha512-WkUDrojuJs0xkgGf2udWxa3yGBRxPtxUkB79i6aCZLRgc7PM8fZe9TosfPDcvEpQZbuFASnHYmRLBLUbmLOIIA==",
++    "node_modules/happy-dom": {
++      "version": "15.11.7",
++      "resolved": "https://registry.npmmirror.com/happy-dom/-/happy-dom-15.11.7.tgz",
++      "integrity": "sha512-KyrFvnl+J9US63TEzwoiJOQzZBJY7KgBushJA8X61DMbNsH+2ONkDuLDnCnwUiPTF42tLoEmrPyoqbenVA5zrg==",
+       "dev": true,
+-      "license": "MPL-2.0",
++      "license": "MIT",
+       "dependencies": {
+-        "detect-libc": "^2.0.3"
+-      },
+-      "engines": {
+-        "node": ">= 12.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/parcel"
+-      },
+-      "optionalDependencies": {
+-        "lightningcss-android-arm64": "1.33.0",
+-        "lightningcss-darwin-arm64": "1.33.0",
+-        "lightningcss-darwin-x64": "1.33.0",
+-        "lightningcss-freebsd-x64": "1.33.0",
+-        "lightningcss-linux-arm-gnueabihf": "1.33.0",
+-        "lightningcss-linux-arm64-gnu": "1.33.0",
+-        "lightningcss-linux-arm64-musl": "1.33.0",
+-        "lightningcss-linux-x64-gnu": "1.33.0",
+-        "lightningcss-linux-x64-musl": "1.33.0",
+-        "lightningcss-win32-arm64-msvc": "1.33.0",
+-        "lightningcss-win32-x64-msvc": "1.33.0"
+-      }
+-    },
+-    "node_modules/lightningcss-android-arm64": {
+-      "version": "1.33.0",
+-      "resolved": "https://registry.npmmirror.com/lightningcss-android-arm64/-/lightningcss-android-arm64-1.33.0.tgz",
+-      "integrity": "sha512-gEpRTalKdosp4Bb8qWtc2iOgE5SeIHlpS1up9bFq2wAyYhl1UdTObYiHe98zEM9SQvSoqQZ1IQD0JNpg3Ml5pg==",
+-      "cpu": [
+-        "arm64"
+-      ],
+-      "dev": true,
+-      "license": "MPL-2.0",
+-      "optional": true,
+-      "os": [
+-        "android"
+-      ],
+-      "engines": {
+-        "node": ">= 12.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/parcel"
+-      }
+-    },
+-    "node_modules/lightningcss-darwin-arm64": {
+-      "version": "1.33.0",
+-      "resolved": "https://registry.npmmirror.com/lightningcss-darwin-arm64/-/lightningcss-darwin-arm64-1.33.0.tgz",
+-      "integrity": "sha512-Sciaz8eenNTKn9b3t7+xr0ipTp9YxKQY4npwQ3mrRuL0BAVHBLyZxofhaKBAVtzmtRZ/zTyo0/to4B1uWG/Djg==",
+-      "cpu": [
+-        "arm64"
+-      ],
+-      "dev": true,
+-      "license": "MPL-2.0",
+-      "optional": true,
+-      "os": [
+-        "darwin"
+-      ],
+-      "engines": {
+-        "node": ">= 12.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/parcel"
+-      }
+-    },
+-    "node_modules/lightningcss-darwin-x64": {
+-      "version": "1.33.0",
+-      "resolved": "https://registry.npmmirror.com/lightningcss-darwin-x64/-/lightningcss-darwin-x64-1.33.0.tgz",
+-      "integrity": "sha512-Z5UPAxzrjlWNNyGy6i65cJzzvgJ5D3T6wMvs+gWpY9d7qRhANrxqAp6LhxIgZhWEw18RfJTGcRxjuLIBr+m8XQ==",
+-      "cpu": [
+-        "x64"
+-      ],
+-      "dev": true,
+-      "license": "MPL-2.0",
+-      "optional": true,
+-      "os": [
+-        "darwin"
+-      ],
+-      "engines": {
+-        "node": ">= 12.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/parcel"
+-      }
+-    },
+-    "node_modules/lightningcss-freebsd-x64": {
+-      "version": "1.33.0",
+-      "resolved": "https://registry.npmmirror.com/lightningcss-freebsd-x64/-/lightningcss-freebsd-x64-1.33.0.tgz",
+-      "integrity": "sha512-QQM/Ti/hQajJwCY+RiWuCZ9sdtI/XQk7nDK5vC8kkdwixezOlDgvDx7+RT+QjK6FcFT4MpsuoBnHIo/O3StRRg==",
+-      "cpu": [
+-        "x64"
+-      ],
+-      "dev": true,
+-      "license": "MPL-2.0",
+-      "optional": true,
+-      "os": [
+-        "freebsd"
+-      ],
+-      "engines": {
+-        "node": ">= 12.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/parcel"
+-      }
+-    },
+-    "node_modules/lightningcss-linux-arm-gnueabihf": {
+-      "version": "1.33.0",
+-      "resolved": "https://registry.npmmirror.com/lightningcss-linux-arm-gnueabihf/-/lightningcss-linux-arm-gnueabihf-1.33.0.tgz",
+-      "integrity": "sha512-N7FVBe6iS24MlM6R/4RBTxGhQheZGs7tiQ9U32UtF75NzP5Q7xWPRqLBCKxlRQRk3rY1jCIPLzx7WzOhuUIRLQ==",
+-      "cpu": [
+-        "arm"
+-      ],
+-      "dev": true,
+-      "license": "MPL-2.0",
+-      "optional": true,
+-      "os": [
+-        "linux"
+-      ],
+-      "engines": {
+-        "node": ">= 12.0.0"
++        "entities": "^4.5.0",
++        "webidl-conversions": "^7.0.0",
++        "whatwg-mimetype": "^3.0.0"
+       },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/parcel"
+-      }
+-    },
+-    "node_modules/lightningcss-linux-arm64-gnu": {
+-      "version": "1.33.0",
+-      "resolved": "https://registry.npmmirror.com/lightningcss-linux-arm64-gnu/-/lightningcss-linux-arm64-gnu-1.33.0.tgz",
+-      "integrity": "sha512-j2v/itmy4HlNxlc6voKXYgBqNi0Ng2LShg4z7GufpEgs05P+2suBVyi9I6YHq5uoVFx9ETin3eCEhLVyXGQnKg==",
+-      "cpu": [
+-        "arm64"
+-      ],
+-      "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+-      "license": "MPL-2.0",
+-      "optional": true,
+-      "os": [
+-        "linux"
+-      ],
+       "engines": {
+-        "node": ">= 12.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/parcel"
++        "node": ">=18.0.0"
+       }
+     },
+-    "node_modules/lightningcss-linux-arm64-musl": {
+-      "version": "1.33.0",
+-      "resolved": "https://registry.npmmirror.com/lightningcss-linux-arm64-musl/-/lightningcss-linux-arm64-musl-1.33.0.tgz",
+-      "integrity": "sha512-yiO5ROMuYQgXbC60yjZU5CYSFZGKXL0HFATXt9mHJn1+zW55oCtMI9NfcVhYLMFDL7gV7oBPon/EmMMGg2OvtQ==",
+-      "cpu": [
+-        "arm64"
+-      ],
++    "node_modules/happy-dom/node_modules/entities": {
++      "version": "4.5.0",
++      "resolved": "https://registry.npmmirror.com/entities/-/entities-4.5.0.tgz",
++      "integrity": "sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==",
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+-      "license": "MPL-2.0",
+-      "optional": true,
+-      "os": [
+-        "linux"
+-      ],
++      "license": "BSD-2-Clause",
+       "engines": {
+-        "node": ">= 12.0.0"
++        "node": ">=0.12"
+       },
+       "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/parcel"
++        "url": "https://github.com/fb55/entities?sponsor=1"
+       }
+     },
+-    "node_modules/lightningcss-linux-x64-gnu": {
+-      "version": "1.33.0",
+-      "resolved": "https://registry.npmmirror.com/lightningcss-linux-x64-gnu/-/lightningcss-linux-x64-gnu-1.33.0.tgz",
+-      "integrity": "sha512-ar+Ju7LmcN0Jo4FpL4hpFybwNG9/3A/Br5KW2n2jyODg3MEZXaDYADdemoNS+BDNfMgKvylJLj4S5tyRActuAg==",
+-      "cpu": [
+-        "x64"
+-      ],
+-      "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+-      "license": "MPL-2.0",
+-      "optional": true,
+-      "os": [
+-        "linux"
+-      ],
++    "node_modules/has-symbols": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmmirror.com/has-symbols/-/has-symbols-1.1.0.tgz",
++      "integrity": "sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==",
++      "license": "MIT",
+       "engines": {
+-        "node": ">= 12.0.0"
++        "node": ">= 0.4"
+       },
+       "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/parcel"
++        "url": "https://github.com/sponsors/ljharb"
+       }
+     },
+-    "node_modules/lightningcss-linux-x64-musl": {
+-      "version": "1.33.0",
+-      "resolved": "https://registry.npmmirror.com/lightningcss-linux-x64-musl/-/lightningcss-linux-x64-musl-1.33.0.tgz",
+-      "integrity": "sha512-RYiYbkokw0trfKqqzfF55lginwEPrD3OJDfTuJzFs1MK6iFnDenaz1fqLLtX4ITG3OktJQXOeTaw1awrBAlZPw==",
+-      "cpu": [
+-        "x64"
+-      ],
+-      "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+-      "license": "MPL-2.0",
+-      "optional": true,
+-      "os": [
+-        "linux"
+-      ],
++    "node_modules/has-tostringtag": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmmirror.com/has-tostringtag/-/has-tostringtag-1.0.2.tgz",
++      "integrity": "sha512-NqADB8VjPFLM2V0VvHUewwwsw0ZWBaIdgo+ieHtK3hasLz4qeCRjYcqfB6AQrBggRKppKF8L52/VqdVsO47Dlw==",
++      "license": "MIT",
++      "dependencies": {
++        "has-symbols": "^1.0.3"
++      },
+       "engines": {
+-        "node": ">= 12.0.0"
++        "node": ">= 0.4"
+       },
+       "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/parcel"
++        "url": "https://github.com/sponsors/ljharb"
+       }
+     },
+-    "node_modules/lightningcss-win32-arm64-msvc": {
+-      "version": "1.33.0",
+-      "resolved": "https://registry.npmmirror.com/lightningcss-win32-arm64-msvc/-/lightningcss-win32-arm64-msvc-1.33.0.tgz",
+-      "integrity": "sha512-1K+MPfLSFVpphzpdbfkhlWk6wBrTObBzS2T6db10PNOZgR9GoVsAWzwNyuhUYYbTp23j+4RrncfujZ4uAzXvwA==",
+-      "cpu": [
+-        "arm64"
+-      ],
+-      "dev": true,
+-      "license": "MPL-2.0",
+-      "optional": true,
+-      "os": [
+-        "win32"
+-      ],
++    "node_modules/hasown": {
++      "version": "2.0.4",
++      "resolved": "https://registry.npmmirror.com/hasown/-/hasown-2.0.4.tgz",
++      "integrity": "sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==",
++      "license": "MIT",
++      "dependencies": {
++        "function-bind": "^1.1.2"
++      },
+       "engines": {
+-        "node": ">= 12.0.0"
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/https-proxy-agent": {
++      "version": "5.0.1",
++      "resolved": "https://registry.npmmirror.com/https-proxy-agent/-/https-proxy-agent-5.0.1.tgz",
++      "integrity": "sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA==",
++      "license": "MIT",
++      "dependencies": {
++        "agent-base": "6",
++        "debug": "4"
+       },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/parcel"
++      "engines": {
++        "node": ">= 6"
+       }
+     },
+-    "node_modules/lightningcss-win32-x64-msvc": {
+-      "version": "1.33.0",
+-      "resolved": "https://registry.npmmirror.com/lightningcss-win32-x64-msvc/-/lightningcss-win32-x64-msvc-1.33.0.tgz",
+-      "integrity": "sha512-OlEICDx/Xl0FqSp4bry8zFnCvGpig3Gl4gCquvYwHuqJKEC1+n9NgDniFvqHGmMv1ZkqDJrDqKKSykTDX+ehuA==",
+-      "cpu": [
+-        "x64"
+-      ],
++    "node_modules/ini": {
++      "version": "1.3.8",
++      "resolved": "https://registry.npmmirror.com/ini/-/ini-1.3.8.tgz",
++      "integrity": "sha512-JV/yugV2uzW5iMRSiZAyDtQd+nxtUnjeLt0acNdw98kKLrvuRVyB80tsREOE7yvGVgalhZ6RNXCmEHkUKBKxew==",
+       "dev": true,
+-      "license": "MPL-2.0",
+-      "optional": true,
+-      "os": [
+-        "win32"
+-      ],
+-      "engines": {
+-        "node": ">= 12.0.0"
++      "license": "ISC"
++    },
++    "node_modules/js-beautify": {
++      "version": "2.0.3",
++      "resolved": "https://registry.npmmirror.com/js-beautify/-/js-beautify-2.0.3.tgz",
++      "integrity": "sha512-cyFbh3tkPhknnTD/0bLf0T0yy2ZIbqL05mttzbt4y1Zfr7NxqXQZ62dkBLKs3oHH/lpjmDRAnciJiSUyOy8XwQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "config-chain": "^1.1.13",
++        "editorconfig": "^3.0.2",
++        "glob": "^13.0.6",
++        "js-cookie": "^3.0.8",
++        "nopt": "^10.0.1"
+       },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/parcel"
++      "bin": {
++        "css-beautify": "js/bin/css-beautify.js",
++        "html-beautify": "js/bin/html-beautify.js",
++        "js-beautify": "js/bin/js-beautify.js"
++      },
++      "engines": {
++        "node": ">=14"
+       }
+     },
++    "node_modules/js-cookie": {
++      "version": "3.0.8",
++      "resolved": "https://registry.npmmirror.com/js-cookie/-/js-cookie-3.0.8.tgz",
++      "integrity": "sha512-yeJd4aNAdYZQjaon2bpD/Gb0B/omw7HQOsynXXcOiWVCacbBcPlgn8S/d1X6blFSaHao7ozqtW7NZW19xpCtIw==",
++      "dev": true,
++      "license": "MIT"
++    },
+     "node_modules/lodash": {
+       "version": "4.18.1",
+       "resolved": "https://registry.npmmirror.com/lodash/-/lodash-4.18.1.tgz",
+@@ -1278,6 +1940,23 @@
+         "lodash-es": "*"
+       }
+     },
++    "node_modules/loupe": {
++      "version": "3.2.1",
++      "resolved": "https://registry.npmmirror.com/loupe/-/loupe-3.2.1.tgz",
++      "integrity": "sha512-CdzqowRJCeLU72bHvWqwRBBlLcMEtIvGrlvef74kMnV2AolS9Y8xUv1I0U/MNAWMhBlKIoyuEgoJ0t/bbwHbLQ==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/lru-cache": {
++      "version": "11.5.2",
++      "resolved": "https://registry.npmmirror.com/lru-cache/-/lru-cache-11.5.2.tgz",
++      "integrity": "sha512-4pfM1Ff0x50o0tQwb5ucw/RzNyD0/YJME6IVcStalZuMWxdt3sR3huStTtxz4PUmvZfRguvDejasvQ2kifR11g==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "engines": {
++        "node": "20 || >=22"
++      }
++    },
+     "node_modules/magic-string": {
+       "version": "0.30.21",
+       "resolved": "https://registry.npmmirror.com/magic-string/-/magic-string-0.30.21.tgz",
+@@ -1323,6 +2002,32 @@
+         "node": ">= 0.6"
+       }
+     },
++    "node_modules/minimatch": {
++      "version": "10.2.6",
++      "resolved": "https://registry.npmmirror.com/minimatch/-/minimatch-10.2.6.tgz",
++      "integrity": "sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "dependencies": {
++        "brace-expansion": "^5.0.8"
++      },
++      "engines": {
++        "node": "18 || 20 || >=22"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/isaacs"
++      }
++    },
++    "node_modules/minipass": {
++      "version": "7.1.3",
++      "resolved": "https://registry.npmmirror.com/minipass/-/minipass-7.1.3.tgz",
++      "integrity": "sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "engines": {
++        "node": ">=16 || 14 >=14.17"
++      }
++    },
+     "node_modules/ms": {
+       "version": "2.1.3",
+       "resolved": "https://registry.npmmirror.com/ms/-/ms-2.1.3.tgz",
+@@ -1347,31 +2052,68 @@
+         "node": "^10 || ^12 || ^13.7 || ^14 || >=15.0.1"
+       }
+     },
++    "node_modules/nopt": {
++      "version": "10.0.1",
++      "resolved": "https://registry.npmmirror.com/nopt/-/nopt-10.0.1.tgz",
++      "integrity": "sha512-df3sBr/6ax9hSGuC3CspvLlbnX8cP5L5nZwXF8cGN8l0zSWR6BvzmQ6jPUKjvo6+/xdpkNvEcucBNUdBeeV13g==",
++      "dev": true,
++      "license": "ISC",
++      "dependencies": {
++        "abbrev": "^5.0.0"
++      },
++      "bin": {
++        "nopt": "bin/nopt.js"
++      },
++      "engines": {
++        "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
++      }
++    },
+     "node_modules/normalize-wheel-es": {
+       "version": "1.2.0",
+       "resolved": "https://registry.npmmirror.com/normalize-wheel-es/-/normalize-wheel-es-1.2.0.tgz",
+       "integrity": "sha512-Wj7+EJQ8mSuXr2iWfnujrimU35R2W4FAErEyTmJoJ7ucwTn2hOUSsRehMb5RSYkxXGTM7Y9QpvPmp++w5ftoJw==",
+       "license": "BSD-3-Clause"
+     },
+-    "node_modules/picocolors": {
+-      "version": "1.1.1",
+-      "resolved": "https://registry.npmmirror.com/picocolors/-/picocolors-1.1.1.tgz",
+-      "integrity": "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==",
+-      "license": "ISC"
+-    },
+-    "node_modules/picomatch": {
+-      "version": "4.0.7",
+-      "resolved": "https://registry.npmmirror.com/picomatch/-/picomatch-4.0.7.tgz",
+-      "integrity": "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==",
++    "node_modules/path-scurry": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmmirror.com/path-scurry/-/path-scurry-2.0.2.tgz",
++      "integrity": "sha512-3O/iVVsJAPsOnpwWIeD+d6z/7PmqApyQePUtCndjatj/9I5LylHvt5qluFaBT3I5h3r1ejfR056c+FCv+NnNXg==",
+       "dev": true,
+-      "license": "MIT",
++      "license": "BlueOak-1.0.0",
++      "dependencies": {
++        "lru-cache": "^11.0.0",
++        "minipass": "^7.1.2"
++      },
+       "engines": {
+-        "node": ">=12"
++        "node": "18 || 20 || >=22"
+       },
+       "funding": {
+-        "url": "https://github.com/sponsors/jonschlinkert"
++        "url": "https://github.com/sponsors/isaacs"
++      }
++    },
++    "node_modules/pathe": {
++      "version": "1.1.2",
++      "resolved": "https://registry.npmmirror.com/pathe/-/pathe-1.1.2.tgz",
++      "integrity": "sha512-whLdWMYL2TwI08hn8/ZqAbrVemu0LNaNNJZX73O6qaIdCTfXutsLhMkjdENX0qhsQ9uIimo4/aQOmXkoon2nDQ==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/pathval": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmmirror.com/pathval/-/pathval-2.0.1.tgz",
++      "integrity": "sha512-//nshmD55c46FuFw26xV/xFAaB5HF9Xdap7HJBBnrKdAd6/GxDBaNA1870O79+9ueg61cZLSVc+OaFlfmObYVQ==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">= 14.16"
+       }
+     },
++    "node_modules/picocolors": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmmirror.com/picocolors/-/picocolors-1.1.1.tgz",
++      "integrity": "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==",
++      "license": "ISC"
++    },
+     "node_modules/pinia": {
+       "version": "2.3.1",
+       "resolved": "https://registry.npmmirror.com/pinia/-/pinia-2.3.1.tgz",
+@@ -1422,6 +2164,13 @@
+         "node": "^10 || ^12 || >=14"
+       }
+     },
++    "node_modules/proto-list": {
++      "version": "1.2.4",
++      "resolved": "https://registry.npmmirror.com/proto-list/-/proto-list-1.2.4.tgz",
++      "integrity": "sha512-vtK/94akxsTMhe0/cbfpR+syPuszcuwhqVjJq26CuNDgFGj682oRBXOP5MJpv2r7JtE8MsiepGIqvvOTBwn2vA==",
++      "dev": true,
++      "license": "ISC"
++    },
+     "node_modules/proxy-from-env": {
+       "version": "2.1.0",
+       "resolved": "https://registry.npmmirror.com/proxy-from-env/-/proxy-from-env-2.1.0.tgz",
+@@ -1437,43 +2186,71 @@
+       "integrity": "sha512-R/tCuvuOHQ8o2boRP6vgx8hXCCy87H1eY9V5imBYeVNyNVpuL9ciReSccLj2gDcax9+2weXy3bc8Vv+NRXeEvQ==",
+       "license": "MIT"
+     },
+-    "node_modules/rolldown": {
+-      "version": "1.2.7",
+-      "resolved": "https://registry.npmmirror.com/rolldown/-/rolldown-1.2.7.tgz",
+-      "integrity": "sha512-g0EtLvBjTUB7jhyV0S/TCup3v/XSVl45vUIGbOGU4QPiyjTenCe4mKuFvW9fEgYmS2Fo42AUssRmNuMziXdrig==",
++    "node_modules/rollup": {
++      "version": "4.63.1",
++      "resolved": "https://registry.npmmirror.com/rollup/-/rollup-4.63.1.tgz",
++      "integrity": "sha512-3Df9jsstwhccuEfmAMi9l8XUh/GOkVObmFTU7CCVBysEbcOZLl84jCtaAZMcPiMz2EGKsATzQcU+Xr3n/wU6cg==",
+       "dev": true,
+       "license": "MIT",
+       "dependencies": {
+-        "@oxc-project/types": "=0.148.0",
+-        "@rolldown/pluginutils": "^1.0.0"
++        "@types/estree": "1.0.9"
+       },
+       "bin": {
+-        "rolldown": "bin/cli.mjs"
++        "rollup": "dist/bin/rollup"
+       },
+       "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
++        "node": ">=18.0.0",
++        "npm": ">=8.0.0"
+       },
+       "optionalDependencies": {
+-        "@rolldown/binding-android-arm-eabi": "1.2.7",
+-        "@rolldown/binding-android-arm64": "1.2.7",
+-        "@rolldown/binding-darwin-arm64": "1.2.7",
+-        "@rolldown/binding-darwin-x64": "1.2.7",
+-        "@rolldown/binding-freebsd-x64": "1.2.7",
+-        "@rolldown/binding-linux-arm-gnueabihf": "1.2.7",
+-        "@rolldown/binding-linux-arm64-gnu": "1.2.7",
+-        "@rolldown/binding-linux-arm64-musl": "1.2.7",
+-        "@rolldown/binding-linux-ppc64-gnu": "1.2.7",
+-        "@rolldown/binding-linux-s390x-gnu": "1.2.7",
+-        "@rolldown/binding-linux-x64-gnu": "1.2.7",
+-        "@rolldown/binding-linux-x64-musl": "1.2.7",
+-        "@rolldown/binding-openharmony-arm64": "1.2.7",
+-        "@rolldown/binding-win32-arm64-msvc": "1.2.7",
+-        "@rolldown/binding-win32-x64-msvc": "1.2.7"
+-      }
+-    },
+-    "node_modules/rolldown/node_modules/@rolldown/binding-darwin-arm64": {
+-      "dev": true,
+-      "optional": true
++        "@napi-rs/lzma-linux-x64-gnu": "1.5.1",
++        "@rollup/rollup-android-arm-eabi": "4.63.1",
++        "@rollup/rollup-android-arm64": "4.63.1",
++        "@rollup/rollup-darwin-arm64": "4.63.1",
++        "@rollup/rollup-darwin-x64": "4.63.1",
++        "@rollup/rollup-freebsd-arm64": "4.63.1",
++        "@rollup/rollup-freebsd-x64": "4.63.1",
++        "@rollup/rollup-linux-arm-gnueabihf": "4.63.1",
++        "@rollup/rollup-linux-arm-musleabihf": "4.63.1",
++        "@rollup/rollup-linux-arm64-gnu": "4.63.1",
++        "@rollup/rollup-linux-arm64-musl": "4.63.1",
++        "@rollup/rollup-linux-loong64-gnu": "4.63.1",
++        "@rollup/rollup-linux-loong64-musl": "4.63.1",
++        "@rollup/rollup-linux-ppc64-gnu": "4.63.1",
++        "@rollup/rollup-linux-ppc64-musl": "4.63.1",
++        "@rollup/rollup-linux-riscv64-gnu": "4.63.1",
++        "@rollup/rollup-linux-riscv64-musl": "4.63.1",
++        "@rollup/rollup-linux-s390x-gnu": "4.63.1",
++        "@rollup/rollup-linux-x64-gnu": "4.63.1",
++        "@rollup/rollup-linux-x64-musl": "4.63.1",
++        "@rollup/rollup-openbsd-x64": "4.63.1",
++        "@rollup/rollup-openharmony-arm64": "4.63.1",
++        "@rollup/rollup-win32-arm64-msvc": "4.63.1",
++        "@rollup/rollup-win32-ia32-msvc": "4.63.1",
++        "@rollup/rollup-win32-x64-gnu": "4.63.1",
++        "@rollup/rollup-win32-x64-msvc": "4.63.1",
++        "fsevents": "~2.3.2"
++      }
++    },
++    "node_modules/semver": {
++      "version": "7.8.5",
++      "resolved": "https://registry.npmmirror.com/semver/-/semver-7.8.5.tgz",
++      "integrity": "sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==",
++      "dev": true,
++      "license": "ISC",
++      "bin": {
++        "semver": "bin/semver.js"
++      },
++      "engines": {
++        "node": ">=10"
++      }
++    },
++    "node_modules/siginfo": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmmirror.com/siginfo/-/siginfo-2.0.0.tgz",
++      "integrity": "sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==",
++      "dev": true,
++      "license": "ISC"
+     },
+     "node_modules/source-map-js": {
+       "version": "1.2.1",
+@@ -1484,21 +2261,62 @@
+         "node": ">=0.10.0"
+       }
+     },
+-    "node_modules/tinyglobby": {
+-      "version": "0.2.17",
+-      "resolved": "https://registry.npmmirror.com/tinyglobby/-/tinyglobby-0.2.17.tgz",
+-      "integrity": "sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==",
++    "node_modules/stackback": {
++      "version": "0.0.2",
++      "resolved": "https://registry.npmmirror.com/stackback/-/stackback-0.0.2.tgz",
++      "integrity": "sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/std-env": {
++      "version": "3.10.0",
++      "resolved": "https://registry.npmmirror.com/std-env/-/std-env-3.10.0.tgz",
++      "integrity": "sha512-5GS12FdOZNliM5mAOxFRg7Ir0pWz8MdpYm6AY6VPkGpbA7ZzmbzNcBJQ0GPvvyWgcY7QAhCgf9Uy89I03faLkg==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/tinybench": {
++      "version": "2.9.0",
++      "resolved": "https://registry.npmmirror.com/tinybench/-/tinybench-2.9.0.tgz",
++      "integrity": "sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/tinyexec": {
++      "version": "0.3.2",
++      "resolved": "https://registry.npmmirror.com/tinyexec/-/tinyexec-0.3.2.tgz",
++      "integrity": "sha512-KQQR9yN7R5+OSwaK0XQoj22pwHoTlgYqmUscPYoknOoWCWfj/5/ABTMRi69FrKU5ffPVh5QcFikpWJI/P1ocHA==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/tinypool": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmmirror.com/tinypool/-/tinypool-1.1.1.tgz",
++      "integrity": "sha512-Zba82s87IFq9A9XmjiX5uZA/ARWDrB03OHlq+Vw1fSdt0I+4/Kutwy8BP4Y/y/aORMo61FQ0vIb5j44vSo5Pkg==",
+       "dev": true,
+       "license": "MIT",
+-      "dependencies": {
+-        "fdir": "^6.5.0",
+-        "picomatch": "^4.0.4"
+-      },
+       "engines": {
+-        "node": ">=12.0.0"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/SuperchupuDev"
++        "node": "^18.0.0 || >=20.0.0"
++      }
++    },
++    "node_modules/tinyrainbow": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmmirror.com/tinyrainbow/-/tinyrainbow-1.2.0.tgz",
++      "integrity": "sha512-weEDEq7Z5eTHPDh4xjX789+fHfF+P8boiFB+0vbWzpbnbsEr/GRaohi/uMKxg8RZMXnl1ItAi/IUHWMsjDV7kQ==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=14.0.0"
++      }
++    },
++    "node_modules/tinyspy": {
++      "version": "3.0.2",
++      "resolved": "https://registry.npmmirror.com/tinyspy/-/tinyspy-3.0.2.tgz",
++      "integrity": "sha512-n1cw8k1k0x4pgA2+9XrOkFydTerNcJ1zWCO5Nn9scWHTD+5tp8dghT2x1uduQePZTZgd3Tupf+x9BxJjeJi77Q==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=14.0.0"
+       }
+     },
+     "node_modules/tslib": {
+@@ -1508,23 +2326,21 @@
+       "license": "0BSD"
+     },
+     "node_modules/vite": {
+-      "version": "8.2.2",
+-      "resolved": "https://registry.npmmirror.com/vite/-/vite-8.2.2.tgz",
+-      "integrity": "sha512-cFKLV/PRgAUlIRm5WjMjJ86jrftzpqcgH+Us+DS8mI3CDNiH30Whrz8uHL3+MOLPAgqbMBAqWdAHAphOAM+z/Q==",
++      "version": "5.4.21",
++      "resolved": "https://registry.npmmirror.com/vite/-/vite-5.4.21.tgz",
++      "integrity": "sha512-o5a9xKjbtuhY6Bi5S3+HvbRERmouabWbyUcpXXUA1u+GNUKoROi9byOJ8M0nHbHYHkYICiMlqxkg1KkYmm25Sw==",
+       "dev": true,
+       "license": "MIT",
+       "dependencies": {
+-        "lightningcss": "^1.33.0",
+-        "picomatch": "^4.0.5",
+-        "postcss": "^8.5.26",
+-        "rolldown": "~1.2.4",
+-        "tinyglobby": "^0.2.17"
++        "esbuild": "^0.21.3",
++        "postcss": "^8.4.43",
++        "rollup": "^4.20.0"
+       },
+       "bin": {
+         "vite": "bin/vite.js"
+       },
+       "engines": {
+-        "node": "^20.19.0 || >=22.12.0"
++        "node": "^18.0.0 || >=20.0.0"
+       },
+       "funding": {
+         "url": "https://github.com/vitejs/vite?sponsor=1"
+@@ -1533,33 +2349,23 @@
+         "fsevents": "~2.3.3"
+       },
+       "peerDependencies": {
+-        "@types/node": "^20.19.0 || >=22.12.0",
+-        "@vitejs/devtools": "^0.4.0 || ^0.5.0",
+-        "esbuild": "^0.27.0 || ^0.28.0",
+-        "jiti": ">=1.21.0",
+-        "less": "^4.0.0",
+-        "sass": "^1.70.0",
+-        "sass-embedded": "^1.70.0",
+-        "stylus": ">=0.54.8",
+-        "sugarss": "^5.0.0",
+-        "terser": "^5.16.0",
+-        "tsx": "^4.8.1",
+-        "yaml": "^2.4.2"
++        "@types/node": "^18.0.0 || >=20.0.0",
++        "less": "*",
++        "lightningcss": "^1.21.0",
++        "sass": "*",
++        "sass-embedded": "*",
++        "stylus": "*",
++        "sugarss": "*",
++        "terser": "^5.4.0"
+       },
+       "peerDependenciesMeta": {
+         "@types/node": {
+           "optional": true
+         },
+-        "@vitejs/devtools": {
+-          "optional": true
+-        },
+-        "esbuild": {
+-          "optional": true
+-        },
+-        "jiti": {
++        "less": {
+           "optional": true
+         },
+-        "less": {
++        "lightningcss": {
+           "optional": true
+         },
+         "sass": {
+@@ -1576,11 +2382,94 @@
+         },
+         "terser": {
+           "optional": true
++        }
++      }
++    },
++    "node_modules/vite-node": {
++      "version": "2.1.9",
++      "resolved": "https://registry.npmmirror.com/vite-node/-/vite-node-2.1.9.tgz",
++      "integrity": "sha512-AM9aQ/IPrW/6ENLQg3AGY4K1N2TGZdR5e4gu/MmmR2xR3Ll1+dib+nook92g4TV3PXVyeyxdWwtaCAiUL0hMxA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "cac": "^6.7.14",
++        "debug": "^4.3.7",
++        "es-module-lexer": "^1.5.4",
++        "pathe": "^1.1.2",
++        "vite": "^5.0.0"
++      },
++      "bin": {
++        "vite-node": "vite-node.mjs"
++      },
++      "engines": {
++        "node": "^18.0.0 || >=20.0.0"
++      },
++      "funding": {
++        "url": "https://opencollective.com/vitest"
++      }
++    },
++    "node_modules/vitest": {
++      "version": "2.1.9",
++      "resolved": "https://registry.npmmirror.com/vitest/-/vitest-2.1.9.tgz",
++      "integrity": "sha512-MSmPM9REYqDGBI8439mA4mWhV5sKmDlBKWIYbA3lRb2PTHACE0mgKwA8yQ2xq9vxDTuk4iPrECBAEW2aoFXY0Q==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@vitest/expect": "2.1.9",
++        "@vitest/mocker": "2.1.9",
++        "@vitest/pretty-format": "^2.1.9",
++        "@vitest/runner": "2.1.9",
++        "@vitest/snapshot": "2.1.9",
++        "@vitest/spy": "2.1.9",
++        "@vitest/utils": "2.1.9",
++        "chai": "^5.1.2",
++        "debug": "^4.3.7",
++        "expect-type": "^1.1.0",
++        "magic-string": "^0.30.12",
++        "pathe": "^1.1.2",
++        "std-env": "^3.8.0",
++        "tinybench": "^2.9.0",
++        "tinyexec": "^0.3.1",
++        "tinypool": "^1.0.1",
++        "tinyrainbow": "^1.2.0",
++        "vite": "^5.0.0",
++        "vite-node": "2.1.9",
++        "why-is-node-running": "^2.3.0"
++      },
++      "bin": {
++        "vitest": "vitest.mjs"
++      },
++      "engines": {
++        "node": "^18.0.0 || >=20.0.0"
++      },
++      "funding": {
++        "url": "https://opencollective.com/vitest"
++      },
++      "peerDependencies": {
++        "@edge-runtime/vm": "*",
++        "@types/node": "^18.0.0 || >=20.0.0",
++        "@vitest/browser": "2.1.9",
++        "@vitest/ui": "2.1.9",
++        "happy-dom": "*",
++        "jsdom": "*"
++      },
++      "peerDependenciesMeta": {
++        "@edge-runtime/vm": {
++          "optional": true
++        },
++        "@types/node": {
++          "optional": true
++        },
++        "@vitest/browser": {
++          "optional": true
++        },
++        "@vitest/ui": {
++          "optional": true
+         },
+-        "tsx": {
++        "happy-dom": {
+           "optional": true
+         },
+-        "yaml": {
++        "jsdom": {
+           "optional": true
+         }
+       }
+@@ -1704,6 +2593,43 @@
+         "vue": "^3.5.0"
+       }
+     },
++    "node_modules/webidl-conversions": {
++      "version": "7.0.0",
++      "resolved": "https://registry.npmmirror.com/webidl-conversions/-/webidl-conversions-7.0.0.tgz",
++      "integrity": "sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g==",
++      "dev": true,
++      "license": "BSD-2-Clause",
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/whatwg-mimetype": {
++      "version": "3.0.0",
++      "resolved": "https://registry.npmmirror.com/whatwg-mimetype/-/whatwg-mimetype-3.0.0.tgz",
++      "integrity": "sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=12"
++      }
++    },
++    "node_modules/why-is-node-running": {
++      "version": "2.3.0",
++      "resolved": "https://registry.npmmirror.com/why-is-node-running/-/why-is-node-running-2.3.0.tgz",
++      "integrity": "sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "siginfo": "^2.0.0",
++        "stackback": "0.0.2"
++      },
++      "bin": {
++        "why-is-node-running": "cli.js"
++      },
++      "engines": {
++        "node": ">=8"
++      }
++    },
+     "node_modules/zrender": {
+       "version": "5.6.1",
+       "resolved": "https://registry.npmmirror.com/zrender/-/zrender-5.6.1.tgz",
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/package.json" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/package.json"
+index 74aa01f..cf34162 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/package.json"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/package.json"
+@@ -6,7 +6,8 @@
+   "scripts": {
+     "dev": "vite",
+     "build": "vite build",
+-    "preview": "vite preview"
++    "preview": "vite preview",
++    "test": "vitest run"
+   },
+   "dependencies": {
+     "@element-plus/icons-vue": "^2.3.1",
+@@ -20,6 +21,9 @@
+   },
+   "devDependencies": {
+     "@vitejs/plugin-vue": "^6.0.8",
+-    "vite": "^8.2.0"
++    "@vue/test-utils": "^2.4.6",
++    "happy-dom": "^15.11.3",
++    "vite": "^5.4.0",
++    "vitest": "^2.1.4"
+   }
+ }
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/api/flight.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/api/flight.js"
+index e885ae9..e3aac57 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/api/flight.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/api/flight.js"
+@@ -1,6 +1,7 @@
+ import request from '@/utils/request'
+ 
+ export const searchFlights = (params) => request.get('/flights/search', { params })
++export const getWeeklyPrices = (params) => request.get('/flights/weekly', { params })
+ 
+ export const getFlightList = (params) => request.get('/flights', { params })
+ export const createFlight = (data) => request.post('/flights', data)
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/en-US.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/en-US.js"
+index cf8cf74..b9cabbf 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/en-US.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/en-US.js"
+@@ -67,7 +67,9 @@ export default {
+     sameAirport: 'Origin and destination cannot be the same',
+     missingFields: 'Please select origin, destination and date',
+     cancelled: 'This flight has been cancelled',
+-    noSeats: 'No seats available in this cabin'
++    noSeats: 'No seats available in this cabin',
++    weeklyTitle: 'Weekly Flights',
++    lowest: 'Low'
+   },
+   booking: {
+     title: 'Book Flight',
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/zh-CN.js" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/zh-CN.js"
+index 140c121..ad633a8 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/zh-CN.js"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/locales/zh-CN.js"
+@@ -67,7 +67,9 @@ export default {
+     sameAirport: '出发地和目的地不能相同',
+     missingFields: '请选择出发地、目的地和出发日期',
+     cancelled: '该航班已取消',
+-    noSeats: '该舱位暂无余票'
++    noSeats: '该舱位暂无余票',
++    weeklyTitle: '一周航班信息',
++    lowest: '低'
+   },
+   booking: {
+     title: '预订航班',
+diff --git "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/views/passenger/FlightSearch.vue" "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/views/passenger/FlightSearch.vue"
+index 7b94979..b723e33 100644
+--- "a/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/views/passenger/FlightSearch.vue"
++++ "b/FlightSystem/05-\351\241\271\347\233\256\346\272\220\344\273\243\347\240\201/flight-system-frontend/src/views/passenger/FlightSearch.vue"
+@@ -21,6 +21,22 @@
+       </el-form>
+     </el-card>
+ 
++    <el-card v-loading="weekLoading" class="week-card">
++      <template #header>
++        <div class="card-header">
++          <span>{{ $t('flightSearch.weeklyTitle') }}</span>
++        </div>
++      </template>
++      <FlightWeekBar
++        :items="weekItems"
++        :selected-date="searchForm.date"
++        :lowest-text="$t('flightSearch.lowest')"
++        @select="handleSelectDate"
++        @prev-week="handlePrevWeek"
++        @next-week="handleNextWeek"
++      />
++    </el-card>
++
+     <el-card v-loading="loading" class="result-card">
+       <template #header>
+         <div class="card-header">
+@@ -79,12 +95,14 @@
+ </template>
+ 
+ <script setup>
+-import { ref, reactive, onMounted, computed } from 'vue'
++import { ref, reactive, onMounted, computed, watch } from 'vue'
+ import { useRouter } from 'vue-router'
+ import { ElMessage } from 'element-plus'
+-import { searchFlights } from '@/api/flight'
++import { searchFlights, getWeeklyPrices } from '@/api/flight'
+ import { useI18n } from '@/composables/useI18n'
+ import { useI18nHelpers } from '@/composables/useI18nHelpers'
++import { getWeekRange, markLowestPrice } from '@/composables/useWeeklyFlights'
++import FlightWeekBar from '@/components/FlightWeekBar.vue'
+ 
+ const router = useRouter()
+ const { t } = useI18n()
+@@ -92,6 +110,9 @@ const { formatTime, flightStatusType, flightStatusText } = useI18nHelpers()
+ 
+ const loading = ref(false)
+ const flightList = ref([])
++const weekLoading = ref(false)
++const weekItems = ref([])
++const weekCenterDate = ref('')
+ 
+ const airports = [
+   { code: 'PEK', city: 'Beijing' },
+@@ -168,6 +189,63 @@ const loadFlights = async () => {
+   }
+ }
+ 
++const addDays = (dateStr, days) => {
++  const date = new Date(`${dateStr}T00:00:00`)
++  date.setDate(date.getDate() + days)
++  return date.toISOString().split('T')[0]
++}
++
++const loadWeekPrices = async () => {
++  if (!searchForm.origin || !searchForm.destination || !weekCenterDate.value) return
++  if (searchForm.origin === searchForm.destination) return
++
++  const dates = getWeekRange(weekCenterDate.value)
++  weekLoading.value = true
++  try {
++    const res = await getWeeklyPrices({
++      origin: searchForm.origin,
++      destination: searchForm.destination,
++      startDate: dates[0],
++      endDate: dates[6]
++    })
++    const priceMap = {}
++    res.data.forEach(item => {
++      priceMap[item.date] = item.lowestPrice
++    })
++    const items = dates.map(date => ({
++      date,
++      price: priceMap[date] ?? null
++    }))
++    weekItems.value = markLowestPrice(items)
++  } finally {
++    weekLoading.value = false
++  }
++}
++
++const handleSelectDate = (date) => {
++  searchForm.date = date
++  weekCenterDate.value = date
++  handleSearch()
++}
++
++const handlePrevWeek = () => {
++  weekCenterDate.value = addDays(weekCenterDate.value, -7)
++}
++
++const handleNextWeek = () => {
++  weekCenterDate.value = addDays(weekCenterDate.value, 7)
++}
++
++watch(() => [searchForm.origin, searchForm.destination, weekCenterDate.value], () => {
++  loadWeekPrices()
++})
++
++watch(() => searchForm.date, (date) => {
++  if (date) {
++    weekCenterDate.value = date
++  }
++})
++
+ const goBooking = (item, cabin) => {
+   if (item.status === 3) {
+     ElMessage.warning(t('flightSearch.cancelled'))
+@@ -184,6 +262,7 @@ const goBooking = (item, cabin) => {
+ onMounted(() => {
+   const today = new Date()
+   searchForm.date = today.toISOString().split('T')[0]
++  weekCenterDate.value = searchForm.date
+ })
+ </script>
+ 
+@@ -193,6 +272,7 @@ onMounted(() => {
+ }
+ 
+ .search-card,
++.week-card,
+ .result-card {
+   margin-bottom: 20px;
+ }
+diff --git a/FlightSystem/FlightSystem.zip b/FlightSystem/FlightSystem.zip
+deleted file mode 100644
+index 83e8280..0000000
+Binary files a/FlightSystem/FlightSystem.zip and /dev/null differ
