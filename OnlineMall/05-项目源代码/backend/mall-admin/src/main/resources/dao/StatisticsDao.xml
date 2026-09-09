@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.macro.mall.dao.StatisticsDao">
+
+    <select id="selectSalesByTime" resultType="com.macro.mall.dto.StatisticsSalesResult">
+        SELECT
+            <choose>
+                <when test="param.groupBy == 'month'">DATE_FORMAT(create_time, '%Y-%m')</when>
+                <when test="param.groupBy == 'week'">DATE_FORMAT(create_time, '%Y-%u')</when>
+                <otherwise>DATE_FORMAT(create_time, '%Y-%m-%d')</otherwise>
+            </choose> AS dimension,
+            COUNT(*) AS orderCount,
+            SUM(pay_amount) AS salesAmount,
+            AVG(pay_amount) AS avgOrderValue
+        FROM oms_order
+        WHERE status IN (2, 3, 4, 5, 6)
+        <if test="param.startTime != null">
+            AND create_time &gt;= #{param.startTime}
+        </if>
+        <if test="param.endTime != null">
+            AND create_time &lt;= #{param.endTime}
+        </if>
+        <if test="param.shopId != null">
+            AND shop_id = #{param.shopId}
+        </if>
+        GROUP BY dimension
+        ORDER BY dimension
+    </select>
+
+    <select id="selectSalesByProduct" resultType="com.macro.mall.dto.StatisticsProductResult">
+        SELECT
+            oi.product_id AS productId,
+            oi.product_name AS productName,
+            SUM(oi.product_quantity) AS saleCount,
+            SUM(oi.product_price * oi.product_quantity) AS salesAmount,
+            IFNULL(
+                (SELECT COUNT(*) FROM oms_order_return_apply ra
+                 INNER JOIN oms_order_item oi2 ON ra.order_id = oi2.order_id
+                 WHERE oi2.product_id = oi.product_id AND ra.status = 1) * 1.0
+                / NULLIF(SUM(oi.product_quantity), 0),
+                0
+            ) AS refundRate
+        FROM oms_order_item oi
+        INNER JOIN oms_order o ON oi.order_id = o.id
+        WHERE o.status IN (2, 3, 4, 5, 6)
+        <if test="param.startTime != null">
+            AND o.create_time &gt;= #{param.startTime}
+        </if>
+        <if test="param.endTime != null">
+            AND o.create_time &lt;= #{param.endTime}
+        </if>
+        <if test="param.shopId != null">
+            AND o.shop_id = #{param.shopId}
+        </if>
+        <if test="param.productId != null">
+            AND oi.product_id = #{param.productId}
+        </if>
+        GROUP BY oi.product_id, oi.product_name
+        ORDER BY salesAmount DESC
+    </select>
+
+    <select id="selectSalesByCategory" resultType="com.macro.mall.dto.StatisticsCategoryResult">
+        SELECT
+            p.product_category_id AS categoryId,
+            pc.name AS categoryName,
+            COUNT(DISTINCT o.id) AS orderCount,
+            SUM(oi.product_price * oi.product_quantity) AS salesAmount,
+            ROUND(
+                SUM(oi.product_price * oi.product_quantity) * 100.0
+                / NULLIF((SELECT SUM(oi3.product_price * oi3.product_quantity)
+                          FROM oms_order_item oi3
+                          INNER JOIN oms_order o3 ON oi3.order_id = o3.id
+                          WHERE o3.status IN (2, 3, 4, 5, 6)
+                          <if test="param.startTime != null">
+                              AND o3.create_time &gt;= #{param.startTime}
+                          </if>
+                          <if test="param.endTime != null">
+                              AND o3.create_time &lt;= #{param.endTime}
+                          </if>
+                          <if test="param.shopId != null">
+                              AND o3.shop_id = #{param.shopId}
+                          </if>), 0),
+                2
+            ) AS ratio
+        FROM oms_order_item oi
+        INNER JOIN oms_order o ON oi.order_id = o.id
+        INNER JOIN pms_product p ON oi.product_id = p.id
+        INNER JOIN pms_product_category pc ON p.product_category_id = pc.id
+        WHERE o.status IN (2, 3, 4, 5, 6)
+        <if test="param.startTime != null">
+            AND o.create_time &gt;= #{param.startTime}
+        </if>
+        <if test="param.endTime != null">
+            AND o.create_time &lt;= #{param.endTime}
+        </if>
+        <if test="param.shopId != null">
+            AND o.shop_id = #{param.shopId}
+        </if>
+        <if test="param.categoryId != null">
+            AND p.product_category_id = #{param.categoryId}
+        </if>
+        GROUP BY p.product_category_id, pc.name
+        ORDER BY salesAmount DESC
+    </select>
+
+</mapper>

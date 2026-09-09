@@ -218,3 +218,74 @@ CREATE TABLE IF NOT EXISTS `oms_return_apply_image` (
   PRIMARY KEY (`id`),
   KEY `idx_apply_id` (`apply_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='售后申请凭证图片表';
+
+-- ============================================
+-- 阶段 5：统计报表模块改造
+-- ============================================
+
+-- 1. 统计报表菜单（仅管理员可见）
+INSERT INTO `ums_menu` (`parent_id`, `name`, `title`, `level`, `sort`, `icon`, `hidden`, `create_time`)
+SELECT 0, 'statistics', '统计报表', 0, 4, 'statistics', 0, NOW()
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM `ums_menu` WHERE `name` = 'statistics');
+
+SET @statistics_parent_id = (SELECT `id` FROM `ums_menu` WHERE `name` = 'statistics');
+
+INSERT INTO `ums_menu` (`parent_id`, `name`, `title`, `level`, `sort`, `icon`, `hidden`, `create_time`)
+SELECT @statistics_parent_id, 'statisticsDashboard', '数据看板', 1, 0, 'dashboard', 0, NOW()
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM `ums_menu` WHERE `name` = 'statisticsDashboard');
+
+-- 为超级管理员角色分配统计报表菜单
+SET @statistics_dashboard_menu_id = (SELECT `id` FROM `ums_menu` WHERE `name` = 'statisticsDashboard');
+
+INSERT INTO `ums_role_menu_relation` (`role_id`, `menu_id`)
+SELECT 5, @statistics_dashboard_menu_id
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM `ums_role_menu_relation`
+    WHERE `role_id` = 5 AND `menu_id` = @statistics_dashboard_menu_id
+);
+
+-- 2. 注册统计接口资源并分配给超级管理员
+INSERT INTO `ums_resource` (`name`, `url`, `description`, `category_id`)
+SELECT '统计报表', '/statistics/**', '统计报表接口', 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM `ums_resource` WHERE `url` = '/statistics/**');
+
+SET @statistics_resource_id = (SELECT `id` FROM `ums_resource` WHERE `url` = '/statistics/**');
+
+INSERT INTO `ums_role_resource_relation` (`role_id`, `resource_id`)
+SELECT 5, @statistics_resource_id
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM `ums_role_resource_relation`
+    WHERE `role_id` = 5 AND `resource_id` = @statistics_resource_id
+);
+
+-- 3. 统计查询性能索引
+SET @sql = (
+    SELECT IF(
+        COUNT(*) = 0,
+        'ALTER TABLE `oms_order` ADD INDEX `idx_create_time` (`create_time`)',
+        'SELECT 1'
+    )
+    FROM `INFORMATION_SCHEMA`.`STATISTICS`
+    WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'oms_order' AND `INDEX_NAME` = 'idx_create_time'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+    SELECT IF(
+        COUNT(*) = 0,
+        'ALTER TABLE `oms_order` ADD INDEX `idx_status_shop_id` (`status`, `shop_id`)',
+        'SELECT 1'
+    )
+    FROM `INFORMATION_SCHEMA`.`STATISTICS`
+    WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'oms_order' AND `INDEX_NAME` = 'idx_status_shop_id'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
