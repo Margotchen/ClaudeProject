@@ -109,4 +109,48 @@ public class OmsOrderController {
         }
         return CommonResult.failed();
     }
+
+    @Operation(summary = "模拟支付成功")
+    @RequestMapping(value = "/update/paySuccess", method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult paySuccess(@RequestParam("ids") List<Long> ids) {
+        int count = orderService.paySuccess(ids);
+        if (count > 0) {
+            return CommonResult.success(count);
+        }
+        return CommonResult.failed();
+    }
+
+    @Operation(summary = "商家确认收款")
+    @RequestMapping(value = "/update/confirmPayment", method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult confirmPayment(@RequestParam("ids") List<Long> ids) {
+        int count = orderService.confirmPayment(ids);
+        if (count > 0) {
+            return CommonResult.success(count);
+        }
+        return CommonResult.failed();
+    }
+
+    @Operation(summary = "确认收货")
+    @RequestMapping(value = "/update/receive", method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult receive(@RequestParam("ids") List<Long> ids) {
+        int count = orderService.receive(ids);
+        if (count > 0) {
+            return CommonResult.success(count);
+        }
+        return CommonResult.failed();
+    }
+
+    @Operation(summary = "订单完成")
+    @RequestMapping(value = "/update/complete", method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult complete(@RequestParam("ids") List<Long> ids) {
+        int count = orderService.complete(ids);
+        if (count > 0) {
+            return CommonResult.success(count);
+        }
+        return CommonResult.failed();
+    }
 }

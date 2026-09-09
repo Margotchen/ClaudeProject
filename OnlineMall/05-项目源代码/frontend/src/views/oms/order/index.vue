@@ -3,7 +3,15 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Tickets } from '@element-plus/icons-vue'
-import { getOrderListAPI, orderUpdateCloseAPI, orderDeleteByIdsAPI } from '@/apis/order'
+import {
+  getOrderListAPI,
+  orderUpdateCloseAPI,
+  orderDeleteByIdsAPI,
+  orderPaySuccessAPI,
+  orderConfirmPaymentAPI,
+  orderReceiveAPI,
+  orderCompleteAPI,
+} from '@/apis/order'
 import LogisticsDialog from '@/views/oms/order/components/logisticsDialog.vue'
 import { formatDateTime } from '@/utils/datetime'
 import type { OmsOrder, OrderQueryParam } from '@/types/order'
@@ -60,27 +68,39 @@ const closeOrderData = ref({
 // 物流对话框可见性
 const logisticsDialogVisible = ref(false)
 
-// 订单状态选项
+// 订单状态选项（1-待支付 2-已支付 3-待发货 4-已发货 5-已收货 6-已完成 7-已取消 8-售后中）
 const statusOptions = [
   {
-    label: '待付款',
-    value: 0
-  },
-  {
-    label: '待发货',
+    label: '待支付',
     value: 1
   },
   {
-    label: '已发货',
+    label: '已支付',
     value: 2
   },
   {
-    label: '已完成',
+    label: '待发货',
     value: 3
   },
   {
-    label: '已关闭',
+    label: '已发货',
     value: 4
+  },
+  {
+    label: '已收货',
+    value: 5
+  },
+  {
+    label: '已完成',
+    value: 6
+  },
+  {
+    label: '已取消',
+    value: 7
+  },
+  {
+    label: '售后中',
+    value: 8
   }
 ]
 
@@ -146,19 +166,17 @@ const formatSourceType = (value: number) => {
 
 // 格式化订单状态
 const formatStatus = (value: number) => {
-  if (value === 1) {
-    return '待发货'
-  } else if (value === 2) {
-    return '已发货'
-  } else if (value === 3) {
-    return '已完成'
-  } else if (value === 4) {
-    return '已关闭'
-  } else if (value === 5) {
-    return '无效订单'
-  } else {
-    return '待付款'
+  const map: Record<number, string> = {
+    1: '待支付',
+    2: '已支付',
+    3: '待发货',
+    4: '已发货',
+    5: '已收货',
+    6: '已完成',
+    7: '已取消',
+    8: '售后中'
   }
+  return map[value] || '未知状态'
 }
 
 // 处理重置搜索
@@ -188,10 +206,38 @@ const handleCloseOrder = (index: number, row: OmsOrder) => {
   closeOrderData.value.orderIds = [row.id!]
 }
 
+// 处理支付成功
+const handlePaySuccess = async (index: number, row: OmsOrder) => {
+  await orderPaySuccessAPI({ ids: String(row.id) })
+  ElMessage({ message: '支付成功', type: 'success', duration: 1000 })
+  getList()
+}
+
+// 处理确认收款
+const handleConfirmPayment = async (index: number, row: OmsOrder) => {
+  await orderConfirmPaymentAPI({ ids: String(row.id) })
+  ElMessage({ message: '确认收款成功', type: 'success', duration: 1000 })
+  getList()
+}
+
 // 处理订单发货
 const handleDeliveryOrder = (index: number, row: OmsOrder) => {
   orderStore.setDeliverOrderList([row])
   router.push({ path: '/oms/deliverOrderList' })
+}
+
+// 处理确认收货
+const handleReceive = async (index: number, row: OmsOrder) => {
+  await orderReceiveAPI({ ids: String(row.id) })
+  ElMessage({ message: '确认收货成功', type: 'success', duration: 1000 })
+  getList()
+}
+
+// 处理订单完成
+const handleComplete = async (index: number, row: OmsOrder) => {
+  await orderCompleteAPI({ ids: String(row.id) })
+  ElMessage({ message: '订单已完成', type: 'success', duration: 1000 })
+  getList()
 }
 
 // 处理查看物流
@@ -217,8 +263,8 @@ const handleBatchOperate = async () => {
     return
   }
   if (operateType.value === 1) {
-    // 批量发货
-    const listItems = multipleSelection.value.filter(item => item.status === 1)
+    // 批量发货：仅待发货订单
+    const listItems = multipleSelection.value.filter(item => item.status === 3)
     if (!listItems || listItems.length < 1) {
       ElMessage({
         message: '选中订单中没有可以发货的订单',
@@ -230,13 +276,13 @@ const handleBatchOperate = async () => {
     orderStore.setDeliverOrderList(listItems)
     router.push({ path: '/oms/deliverOrderList' })
   } else if (operateType.value === 2) {
-    // 关闭订单
-    closeOrderData.value.orderIds = multipleSelection.value.filter(item => item.status === 0)
+    // 关闭订单：仅待支付订单
+    closeOrderData.value.orderIds = multipleSelection.value.filter(item => item.status === 1)
       .map(item => item.id)
     closeOrderData.value.dialogVisible = true
   } else if (operateType.value === 3) {
-    // 删除订单
-    const ids = multipleSelection.value.filter(item => item.status === 4)
+    // 删除订单：已完成或已取消订单
+    const ids = multipleSelection.value.filter(item => item.status === 6 || item.status === 7)
       .map(item => item.id)
     await deleteOrderFn(ids)
   }
@@ -377,17 +423,25 @@ const deleteOrderFn = async (ids: number[]) => {
         <el-table-column label="订单状态" width="120" align="center">
           <template #default="scope">{{ formatStatus(scope.row.status) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" align="center">
+        <el-table-column label="操作" width="260" align="center">
           <template #default="scope">
             <el-button size="small" @click="handleViewOrder(scope.$index, scope.row)">查看订单</el-button>
             <el-button size="small" @click="handleCloseOrder(scope.$index, scope.row)"
-              v-show="scope.row.status === 0">关闭订单</el-button>
+              v-show="scope.row.status === 1">关闭订单</el-button>
+            <el-button size="small" type="success" @click="handlePaySuccess(scope.$index, scope.row)"
+              v-show="scope.row.status === 1">支付成功</el-button>
+            <el-button size="small" @click="handleConfirmPayment(scope.$index, scope.row)"
+              v-show="scope.row.status === 2">确认收款</el-button>
             <el-button size="small" @click="handleDeliveryOrder(scope.$index, scope.row)"
-              v-show="scope.row.status === 1">订单发货</el-button>
+              v-show="scope.row.status === 3">订单发货</el-button>
             <el-button size="small" @click="handleViewLogistics(scope.$index, scope.row)"
-              v-show="scope.row.status === 2 || scope.row.status === 3">订单跟踪</el-button>
+              v-show="[4, 5, 6, 8].includes(scope.row.status)">订单跟踪</el-button>
+            <el-button size="small" @click="handleReceive(scope.$index, scope.row)"
+              v-show="scope.row.status === 4">确认收货</el-button>
+            <el-button size="small" @click="handleComplete(scope.$index, scope.row)"
+              v-show="scope.row.status === 5">订单完成</el-button>
             <el-button size="small" type="danger" @click="handleDeleteOrder(scope.$index, scope.row)"
-              v-show="scope.row.status === 4">删除订单</el-button>
+              v-show="scope.row.status === 6 || scope.row.status === 7">删除订单</el-button>
           </template>
         </el-table-column>
       </el-table>

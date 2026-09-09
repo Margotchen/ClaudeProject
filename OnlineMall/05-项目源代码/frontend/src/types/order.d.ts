@@ -32,7 +32,7 @@ export type OmsOrder = {
   payType: number
   /** 订单来源：0->PC订单；1->app订单 */
   sourceType: number
-  /** 订单状态：0->待付款；1->待发货；2->已发货；3->已完成；4->已关闭；5->无效订单 */
+  /** 订单状态：1->待支付；2->已支付；3->待发货；4->已发货；5->已收货；6->已完成；7->已取消；8->售后中 */
   status: number
   /** 订单类型：0->正常订单；1->秒杀订单 */
   orderType: number
@@ -148,7 +148,7 @@ export type OmsOrderOperateHistory = {
   operateMan: string
   /** 操作时间 */
   createTime: string
-  /** 订单状态：0->待付款；1->待发货；2->已发货；3->已完成；4->已关闭；5->无效订单 */
+  /** 订单状态：1->待支付；2->已支付；3->待发货；4->已发货；5->已收货；6->已完成；7->已取消；8->售后中 */
   orderStatus: number
   /** 备注 */
   note: string
@@ -160,7 +160,7 @@ export type OrderQueryParam = PageParam & {
   orderSn?: string
   /** 收货人姓名/号码 */
   receiverKeyword?: string
-  /** 订单状态：0->待付款；1->待发货；2->已发货；3->已完成；4->已关闭；5->无效订单 */
+  /** 订单状态：1->待支付；2->已支付；3->待发货；4->已发货；5->已收货；6->已完成；7->已取消；8->售后中 */
   status?: number
   /** 订单类型：0->正常订单；1->秒杀订单 */
   orderType?: number
@@ -206,7 +206,7 @@ export type OmsReceiverInfoParam = {
   receiverCity?: string
   /** 区 */
   receiverRegion?: string
-  /** 订单状态：0->待付款；1->待发货；2->已发货；3->已完成；4->已关闭；5->无效订单 */
+  /** 订单状态：1->待支付；2->已支付；3->待发货；4->已发货；5->已收货；6->已完成；7->已取消；8->售后中 */
   status: number
 }
 
@@ -218,6 +218,6 @@ export type OmsMoneyInfoParam = {
   freightAmount: number
   /** 管理员后台调整订单所使用的折扣金额 */
   discountAmount: number
-  /** 订单状态：0->待付款；1->待发货；2->已发货；3->已完成；4->已关闭；5->无效订单 */
+  /** 订单状态：1->待支付；2->已支付；3->待发货；4->已发货；5->已收货；6->已完成；7->已取消；8->售后中 */
   status: number
 }

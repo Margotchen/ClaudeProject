@@ -55,4 +55,28 @@ public interface OmsOrderService {
      */
     @Transactional
     int updateNote(Long id, String note, Integer status);
+
+    /**
+     * 模拟支付成功
+     */
+    @Transactional
+    int paySuccess(List<Long> ids);
+
+    /**
+     * 商家确认收款，已支付 -> 待发货
+     */
+    @Transactional
+    int confirmPayment(List<Long> ids);
+
+    /**
+     * 确认收货
+     */
+    @Transactional
+    int receive(List<Long> ids);
+
+    /**
+     * 订单完成
+     */
+    @Transactional
+    int complete(List<Long> ids);
 }

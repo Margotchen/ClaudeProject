@@ -258,7 +258,7 @@ const chartOption = computed(() => {
         <el-row :gutter="20">
           <el-col :span="8">
             <div class="un-handle-item">
-              <span class="font-medium">待付款订单</span>
+              <span class="font-medium">待支付订单</span>
               <span style="float: right" class="color-danger">(10)</span>
             </div>
           </el-col>

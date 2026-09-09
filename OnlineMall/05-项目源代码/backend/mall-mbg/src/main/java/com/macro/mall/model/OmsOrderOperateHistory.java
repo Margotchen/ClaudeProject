@@ -16,7 +16,7 @@ public class OmsOrderOperateHistory implements Serializable {
     @Schema(title = "操作时间")
     private Date createTime;
 
-    @Schema(title = "订单状态：0->待付款；1->待发货；2->已发货；3->已完成；4->已关闭；5->无效订单")
+    @Schema(title = "订单状态：1->待支付；2->已支付；3->待发货；4->已发货；5->已收货；6->已完成；7->已取消；8->售后中")
     private Integer orderStatus;
 
     @Schema(title = "备注")

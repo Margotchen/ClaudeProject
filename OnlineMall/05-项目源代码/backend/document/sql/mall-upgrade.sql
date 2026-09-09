@@ -136,3 +136,21 @@ WHERE `admin_id` = (SELECT `id` FROM `ums_admin` WHERE `username` = 'test');
 
 INSERT INTO `ums_admin_role_relation` (`admin_id`, `role_id`)
 SELECT `id`, @merchant_role_id FROM `ums_admin` WHERE `username` = 'test';
+
+-- ============================================
+-- 阶段 3：订单状态机改造（8 种状态）
+-- 新状态：1-待支付 2-已支付 3-待发货 4-已发货 5-已收货 6-已完成 7-已取消 8-售后中
+-- 旧状态：0-待付款 1-待发货 2-已发货 3-已完成 4-已关闭 5-无效订单
+-- ============================================
+
+UPDATE `oms_order` SET `status` = 1 WHERE `status` = 0;
+UPDATE `oms_order` SET `status` = 3 WHERE `status` = 1;
+UPDATE `oms_order` SET `status` = 4 WHERE `status` = 2;
+UPDATE `oms_order` SET `status` = 6 WHERE `status` = 3;
+UPDATE `oms_order` SET `status` = 7 WHERE `status` IN (4, 5);
+
+UPDATE `oms_order_operate_history` SET `order_status` = 1 WHERE `order_status` = 0;
+UPDATE `oms_order_operate_history` SET `order_status` = 3 WHERE `order_status` = 1;
+UPDATE `oms_order_operate_history` SET `order_status` = 4 WHERE `order_status` = 2;
+UPDATE `oms_order_operate_history` SET `order_status` = 6 WHERE `order_status` = 3;
+UPDATE `oms_order_operate_history` SET `order_status` = 7 WHERE `order_status` IN (4, 5);

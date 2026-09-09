@@ -6,6 +6,7 @@ import com.macro.mall.dao.OmsOrderOperateHistoryDao;
 import com.macro.mall.dto.*;
 import com.macro.mall.mapper.OmsOrderMapper;
 import com.macro.mall.mapper.OmsOrderOperateHistoryMapper;
+import com.macro.mall.constant.OmsOrderStatus;
 import com.macro.mall.model.OmsOrder;
 import com.macro.mall.model.OmsOrderExample;
 import com.macro.mall.model.OmsOrderOperateHistory;
@@ -42,7 +43,13 @@ public class OmsOrderServiceImpl implements OmsOrderService {
 
     @Override
     public int delivery(List<OmsOrderDeliveryParam> deliveryParamList) {
-        //批量发货
+        //批量发货，仅允许待发货订单发货
+        for (OmsOrderDeliveryParam param : deliveryParamList) {
+            OmsOrder order = orderMapper.selectByPrimaryKey(param.getOrderId());
+            if (order == null || !OmsOrderStatus.PENDING_SHIPMENT.getValue().equals(order.getStatus())) {
+                throw new RuntimeException("订单不存在或不是待发货状态，无法发货");
+            }
+        }
         int count = orderDao.delivery(deliveryParamList);
         //添加操作记录
         List<OmsOrderOperateHistory> operateHistoryList = deliveryParamList.stream()
@@ -51,7 +58,7 @@ public class OmsOrderServiceImpl implements OmsOrderService {
                     history.setOrderId(omsOrderDeliveryParam.getOrderId());
                     history.setCreateTime(new Date());
                     history.setOperateMan("后台管理员");
-                    history.setOrderStatus(2);
+                    history.setOrderStatus(OmsOrderStatus.SHIPPED.getValue());
                     history.setNote("完成发货");
                     return history;
                 }).collect(Collectors.toList());
@@ -61,8 +68,17 @@ public class OmsOrderServiceImpl implements OmsOrderService {
 
     @Override
     public int close(List<Long> ids, String note) {
+        //仅允许关闭待支付订单
+        OmsOrderExample checkExample = new OmsOrderExample();
+        checkExample.createCriteria().andIdIn(ids);
+        List<OmsOrder> orders = orderMapper.selectByExample(checkExample);
+        for (OmsOrder order : orders) {
+            if (!OmsOrderStatus.UNPAID.getValue().equals(order.getStatus())) {
+                throw new RuntimeException("只能关闭待支付订单");
+            }
+        }
         OmsOrder record = new OmsOrder();
-        record.setStatus(4);
+        record.setStatus(OmsOrderStatus.CANCELLED.getValue());
         OmsOrderExample example = new OmsOrderExample();
         example.createCriteria().andDeleteStatusEqualTo(0).andIdIn(ids);
         int count = orderMapper.updateByExampleSelective(record, example);
@@ -71,7 +87,7 @@ public class OmsOrderServiceImpl implements OmsOrderService {
             history.setOrderId(orderId);
             history.setCreateTime(new Date());
             history.setOperateMan("后台管理员");
-            history.setOrderStatus(4);
+            history.setOrderStatus(OmsOrderStatus.CANCELLED.getValue());
             history.setNote("订单关闭:"+note);
             return history;
         }).collect(Collectors.toList());
@@ -150,6 +166,118 @@ public class OmsOrderServiceImpl implements OmsOrderService {
         history.setOrderStatus(status);
         history.setNote("修改备注信息："+note);
         orderOperateHistoryMapper.insert(history);
+        return count;
+    }
+
+    @Override
+    public int paySuccess(List<Long> ids) {
+        for (Long id : ids) {
+            OmsOrder order = orderMapper.selectByPrimaryKey(id);
+            if (order == null || !OmsOrderStatus.UNPAID.getValue().equals(order.getStatus())) {
+                throw new RuntimeException("订单不存在或不是待支付状态，id=" + id);
+            }
+        }
+        OmsOrder record = new OmsOrder();
+        record.setStatus(OmsOrderStatus.PAID.getValue());
+        record.setPayType(1);
+        record.setPaymentTime(new Date());
+        record.setModifyTime(new Date());
+        OmsOrderExample example = new OmsOrderExample();
+        example.createCriteria().andDeleteStatusEqualTo(0).andIdIn(ids);
+        int count = orderMapper.updateByExampleSelective(record, example);
+        List<OmsOrderOperateHistory> historyList = ids.stream().map(orderId -> {
+            OmsOrderOperateHistory history = new OmsOrderOperateHistory();
+            history.setOrderId(orderId);
+            history.setCreateTime(new Date());
+            history.setOperateMan("后台管理员");
+            history.setOrderStatus(OmsOrderStatus.PAID.getValue());
+            history.setNote("模拟支付成功");
+            return history;
+        }).collect(Collectors.toList());
+        orderOperateHistoryDao.insertList(historyList);
+        return count;
+    }
+
+    @Override
+    public int confirmPayment(List<Long> ids) {
+        for (Long id : ids) {
+            OmsOrder order = orderMapper.selectByPrimaryKey(id);
+            if (order == null || !OmsOrderStatus.PAID.getValue().equals(order.getStatus())) {
+                throw new RuntimeException("订单不存在或不是已支付状态，id=" + id);
+            }
+        }
+        OmsOrder record = new OmsOrder();
+        record.setStatus(OmsOrderStatus.PENDING_SHIPMENT.getValue());
+        record.setModifyTime(new Date());
+        OmsOrderExample example = new OmsOrderExample();
+        example.createCriteria().andDeleteStatusEqualTo(0).andIdIn(ids);
+        int count = orderMapper.updateByExampleSelective(record, example);
+        List<OmsOrderOperateHistory> historyList = ids.stream().map(orderId -> {
+            OmsOrderOperateHistory history = new OmsOrderOperateHistory();
+            history.setOrderId(orderId);
+            history.setCreateTime(new Date());
+            history.setOperateMan("后台管理员");
+            history.setOrderStatus(OmsOrderStatus.PENDING_SHIPMENT.getValue());
+            history.setNote("商家确认收款");
+            return history;
+        }).collect(Collectors.toList());
+        orderOperateHistoryDao.insertList(historyList);
+        return count;
+    }
+
+    @Override
+    public int receive(List<Long> ids) {
+        for (Long id : ids) {
+            OmsOrder order = orderMapper.selectByPrimaryKey(id);
+            if (order == null || !OmsOrderStatus.SHIPPED.getValue().equals(order.getStatus())) {
+                throw new RuntimeException("订单不存在或不是已发货状态，id=" + id);
+            }
+        }
+        OmsOrder record = new OmsOrder();
+        record.setStatus(OmsOrderStatus.RECEIVED.getValue());
+        record.setReceiveTime(new Date());
+        record.setConfirmStatus(1);
+        record.setModifyTime(new Date());
+        OmsOrderExample example = new OmsOrderExample();
+        example.createCriteria().andDeleteStatusEqualTo(0).andIdIn(ids);
+        int count = orderMapper.updateByExampleSelective(record, example);
+        List<OmsOrderOperateHistory> historyList = ids.stream().map(orderId -> {
+            OmsOrderOperateHistory history = new OmsOrderOperateHistory();
+            history.setOrderId(orderId);
+            history.setCreateTime(new Date());
+            history.setOperateMan("后台管理员");
+            history.setOrderStatus(OmsOrderStatus.RECEIVED.getValue());
+            history.setNote("确认收货");
+            return history;
+        }).collect(Collectors.toList());
+        orderOperateHistoryDao.insertList(historyList);
+        return count;
+    }
+
+    @Override
+    public int complete(List<Long> ids) {
+        for (Long id : ids) {
+            OmsOrder order = orderMapper.selectByPrimaryKey(id);
+            if (order == null || !OmsOrderStatus.RECEIVED.getValue().equals(order.getStatus())) {
+                throw new RuntimeException("订单不存在或不是已收货状态，id=" + id);
+            }
+        }
+        OmsOrder record = new OmsOrder();
+        record.setStatus(OmsOrderStatus.COMPLETED.getValue());
+        record.setModifyTime(new Date());
+        OmsOrderExample example = new OmsOrderExample();
+        example.createCriteria().andDeleteStatusEqualTo(0).andIdIn(ids);
+        int count = orderMapper.updateByExampleSelective(record, example);
+        List<OmsOrderOperateHistory> historyList = ids.stream().map(orderId -> {
+            OmsOrderOperateHistory history = new OmsOrderOperateHistory();
+            history.setOrderId(orderId);
+            history.setCreateTime(new Date());
+            history.setOperateMan("后台管理员");
+            history.setOrderStatus(OmsOrderStatus.COMPLETED.getValue());
+            history.setNote("订单完成");
+            return history;
+        }).collect(Collectors.toList());
+        orderOperateHistoryDao.insertList(historyList);
         return count;
     }
 }

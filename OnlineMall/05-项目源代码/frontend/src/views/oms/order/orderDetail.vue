@@ -115,21 +115,19 @@ const formatAddress = (order: OmsOrder) => {
   return str
 }
 
-// 格式化订单状态
+// 格式化订单状态（1-待支付 2-已支付 3-待发货 4-已发货 5-已收货 6-已完成 7-已取消 8-售后中）
 const formatStatus = (value: number) => {
-  if (value === 1) {
-    return '待发货'
-  } else if (value === 2) {
-    return '已发货'
-  } else if (value === 3) {
-    return '已完成'
-  } else if (value === 4) {
-    return '已关闭'
-  } else if (value === 5) {
-    return '无效订单'
-  } else {
-    return '待付款'
+  const map: Record<number, string> = {
+    1: '待支付',
+    2: '已支付',
+    3: '待发货',
+    4: '已发货',
+    5: '已收货',
+    6: '已完成',
+    7: '已取消',
+    8: '售后中'
   }
+  return map[value] || '未知状态'
 }
 
 // 格式化支付状态
@@ -169,21 +167,19 @@ const formatProductAttr = (value: string) => {
   }
 }
 
-// 格式化步骤状态
+// 格式化步骤状态（el-steps active 索引）
 const formatStepStatus = (value: number) => {
-  if (value === 1) {
-    //待发货
-    return 2
-  } else if (value === 2) {
-    //已发货
-    return 3
-  } else if (value === 3) {
-    //已完成
-    return 4
-  } else {
-    //待付款、已关闭、无限订单
-    return 1
+  const map: Record<number, number> = {
+    1: 0, // 待支付
+    2: 1, // 已支付
+    3: 1, // 待发货
+    4: 2, // 已发货
+    5: 3, // 已收货
+    6: 4, // 已完成
+    7: 0, // 已取消
+    8: 3  // 售后中
   }
+  return map[value] ?? 0
 }
 
 // 选择地区
@@ -380,25 +376,21 @@ const showLogisticsDialog = () => {
           <Warning />
         </el-icon>
         <span class="color-danger">当前订单状态：{{ formatStatus(order.status) }}</span>
-        <div class="operate-button-container" v-show="order.status === 0">
+        <div class="operate-button-container" v-show="order.status === 1">
           <el-button size="small" @click="showUpdateReceiverDialog">修改收货人信息</el-button>
           <el-button size="small" @click="showUpdateMoneyDialog">修改费用信息</el-button>
-          <el-button size="small" @click="showMessageDialog">发送站内信</el-button>
           <el-button size="small" @click="showCloseOrderDialog">关闭订单</el-button>
           <el-button size="small" @click="showMarkOrderDialog">备注订单</el-button>
         </div>
-        <div class="operate-button-container" v-show="order.status === 1">
-          <el-button size="small" @click="showUpdateReceiverDialog">修改收货人信息</el-button>
-          <el-button size="small" @click="showMessageDialog">发送站内信</el-button>
-          <el-button size="small">取消订单</el-button>
-          <el-button size="small" @click="showMarkOrderDialog">备注订单</el-button>
-        </div>
         <div class="operate-button-container" v-show="order.status === 2 || order.status === 3">
-          <el-button size="small" @click="showLogisticsDialog">订单跟踪</el-button>
-          <el-button size="small" @click="showMessageDialog">发送站内信</el-button>
+          <el-button size="small" @click="showUpdateReceiverDialog">修改收货人信息</el-button>
           <el-button size="small" @click="showMarkOrderDialog">备注订单</el-button>
         </div>
-        <div class="operate-button-container" v-show="order.status === 4">
+        <div class="operate-button-container" v-show="[4, 5, 6, 8].includes(order.status)">
+          <el-button size="small" @click="showLogisticsDialog">订单跟踪</el-button>
+          <el-button size="small" @click="showMarkOrderDialog">备注订单</el-button>
+        </div>
+        <div class="operate-button-container" v-show="order.status === 7">
           <el-button size="small" @click="handleDeleteOrder">删除订单</el-button>
           <el-button size="small" @click="showMarkOrderDialog">备注订单</el-button>
         </div>

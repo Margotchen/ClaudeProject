@@ -95,3 +95,47 @@ export function orderUpdateNoteAPI(params: { id: number; note: string; status: n
     params: params,
   })
 }
+
+/**
+ * 模拟支付成功
+ */
+export function orderPaySuccessAPI(params: { ids: string }) {
+  return http({
+    url: '/order/update/paySuccess',
+    method: 'post',
+    params: params,
+  })
+}
+
+/**
+ * 商家确认收款
+ */
+export function orderConfirmPaymentAPI(params: { ids: string }) {
+  return http({
+    url: '/order/update/confirmPayment',
+    method: 'post',
+    params: params,
+  })
+}
+
+/**
+ * 确认收货
+ */
+export function orderReceiveAPI(params: { ids: string }) {
+  return http({
+    url: '/order/update/receive',
+    method: 'post',
+    params: params,
+  })
+}
+
+/**
+ * 订单完成
+ */
+export function orderCompleteAPI(params: { ids: string }) {
+  return http({
+    url: '/order/update/complete',
+    method: 'post',
+    params: params,
+  })
+}
