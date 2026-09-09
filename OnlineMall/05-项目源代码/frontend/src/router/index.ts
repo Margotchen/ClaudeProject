@@ -297,6 +297,21 @@ export const asyncRouterMap: RouteRecordExt[] = [
     ],
   },
   {
+    path: '/statistics',
+    component: Layout,
+    redirect: '/statistics/dashboard',
+    name: 'statistics',
+    meta: { title: '统计报表', icon: 'statistics' },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'statisticsDashboard',
+        component: () => import('@/views/statistics/dashboard/index.vue'),
+        meta: { title: '数据看板', icon: 'dashboard' },
+      },
+    ],
+  },
+  {
     path: '/ums',
     component: Layout,
     redirect: '/ums/admin',
