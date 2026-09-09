@@ -16,7 +16,7 @@ public interface OmsOrderDao {
     /**
      * 条件查询订单
      */
-    List<OmsOrder> getList(@Param("queryParam") OmsOrderQueryParam queryParam);
+    List<OmsOrder> getList(@Param("queryParam") OmsOrderQueryParam queryParam, @Param("shopId") Long shopId);
 
     /**
      * 批量发货

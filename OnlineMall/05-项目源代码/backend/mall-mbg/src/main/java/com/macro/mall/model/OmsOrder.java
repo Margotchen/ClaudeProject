@@ -11,6 +11,9 @@ public class OmsOrder implements Serializable {
 
     private Long memberId;
 
+    @Schema(title = "所属商家ID")
+    private Long shopId;
+
     private Long couponId;
 
     @Schema(title = "订单编号")
@@ -152,6 +155,14 @@ public class OmsOrder implements Serializable {
 
     public void setMemberId(Long memberId) {
         this.memberId = memberId;
+    }
+
+    public Long getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(Long shopId) {
+        this.shopId = shopId;
     }
 
     public Long getCouponId() {
@@ -498,6 +509,7 @@ public class OmsOrder implements Serializable {
         sb.append("Hash = ").append(hashCode());
         sb.append(", id=").append(id);
         sb.append(", memberId=").append(memberId);
+        sb.append(", shopId=").append(shopId);
         sb.append(", couponId=").append(couponId);
         sb.append(", orderSn=").append(orderSn);
         sb.append(", createTime=").append(createTime);

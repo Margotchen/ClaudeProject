@@ -10,6 +10,7 @@ import com.macro.mall.dto.PmsProductResult;
 import com.macro.mall.mapper.*;
 import com.macro.mall.model.*;
 import com.macro.mall.service.PmsProductService;
+import com.macro.mall.util.CurrentMerchantUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,6 +72,7 @@ public class PmsProductServiceImpl implements PmsProductService {
         //创建商品
         PmsProduct product = productParam;
         product.setId(null);
+        product.setShopId(CurrentMerchantUtil.getCurrentShopId());
         productMapper.insertSelective(product);
         //根据促销类型设置价格：会员价格、阶梯价格、满减价格
         Long productId = product.getId();
@@ -226,6 +228,10 @@ public class PmsProductServiceImpl implements PmsProductService {
         }
         if (productQueryParam.getProductCategoryId() != null) {
             criteria.andProductCategoryIdEqualTo(productQueryParam.getProductCategoryId());
+        }
+        Long shopId = CurrentMerchantUtil.getCurrentShopId();
+        if (shopId != null) {
+            criteria.andShopIdEqualTo(shopId);
         }
         return productMapper.selectByExample(productExample);
     }

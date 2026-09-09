@@ -26,10 +26,14 @@ export type UserInfoResult = {
   menus: UmsMenu[]
   /** 角色 */
   roles: []
+  /** 所属商家ID */
+  merchantId?: number
+  /** 店铺ID */
+  shopId?: number
 }
 
 /** 用户信息（store中存储的） */
-export type UserInfo = Pick<UserInfoResult, 'username' | 'menus' | 'roles'> & {
+export type UserInfo = Pick<UserInfoResult, 'username' | 'menus' | 'roles' | 'merchantId' | 'shopId'> & {
   /** 密码 */
   password: string
   /** 登录token */

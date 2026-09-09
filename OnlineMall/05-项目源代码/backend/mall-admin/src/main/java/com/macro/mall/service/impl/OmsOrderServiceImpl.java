@@ -10,6 +10,7 @@ import com.macro.mall.model.OmsOrder;
 import com.macro.mall.model.OmsOrderExample;
 import com.macro.mall.model.OmsOrderOperateHistory;
 import com.macro.mall.service.OmsOrderService;
+import com.macro.mall.util.CurrentMerchantUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -35,7 +36,8 @@ public class OmsOrderServiceImpl implements OmsOrderService {
     @Override
     public List<OmsOrder> list(OmsOrderQueryParam queryParam, Integer pageSize, Integer pageNum) {
         PageHelper.startPage(pageNum, pageSize);
-        return orderDao.getList(queryParam);
+        Long shopId = CurrentMerchantUtil.getCurrentShopId();
+        return orderDao.getList(queryParam, shopId);
     }
 
     @Override

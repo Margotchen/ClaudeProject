@@ -32,6 +32,9 @@ public class UmsAdmin implements Serializable {
     @Schema(title = "帐号启用状态：0->禁用；1->启用")
     private Integer status;
 
+    @Schema(title = "所属商家ID")
+    private Long merchantId;
+
     private static final long serialVersionUID = 1L;
 
     public Long getId() {
@@ -114,6 +117,14 @@ public class UmsAdmin implements Serializable {
         this.status = status;
     }
 
+    public Long getMerchantId() {
+        return merchantId;
+    }
+
+    public void setMerchantId(Long merchantId) {
+        this.merchantId = merchantId;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -130,6 +141,7 @@ public class UmsAdmin implements Serializable {
         sb.append(", createTime=").append(createTime);
         sb.append(", loginTime=").append(loginTime);
         sb.append(", status=").append(status);
+        sb.append(", merchantId=").append(merchantId);
         sb.append(", serialVersionUID=").append(serialVersionUID);
         sb.append("]");
         return sb.toString();

@@ -87,7 +87,50 @@ AND NOT EXISTS (
     WHERE `role_id` = @merchant_role_id AND `menu_id` = `ums_menu`.`id`
 );
 
--- 11. 为 test 账号分配商家角色，并移除超级管理员角色
+-- 11. 插入商家管理菜单到权限模块下
+INSERT INTO `ums_menu` (`parent_id`, `name`, `title`, `level`, `sort`, `icon`, `hidden`, `create_time`)
+SELECT 21, 'merchant', '商家管理', 1, 0, 'ums-admin', 0, NOW()
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM `ums_menu` WHERE `name` = 'merchant');
+
+SET @merchant_menu_id = (SELECT `id` FROM `ums_menu` WHERE `name` = 'merchant');
+
+-- 12. 为超级管理员角色分配商家管理菜单
+INSERT INTO `ums_role_menu_relation` (`role_id`, `menu_id`)
+SELECT 5, @merchant_menu_id
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM `ums_role_menu_relation`
+    WHERE `role_id` = 5 AND `menu_id` = @merchant_menu_id
+);
+
+-- 13. 注册商家管理接口资源
+INSERT INTO `ums_resource` (`name`, `url`, `description`, `category_id`)
+SELECT '商家管理', '/merchant/**', '商家管理接口', 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM `ums_resource` WHERE `url` = '/merchant/**');
+
+SET @merchant_resource_id = (SELECT `id` FROM `ums_resource` WHERE `url` = '/merchant/**');
+
+-- 14. 为超级管理员角色分配商家管理资源
+INSERT INTO `ums_role_resource_relation` (`role_id`, `resource_id`)
+SELECT 5, @merchant_resource_id
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM `ums_role_resource_relation`
+    WHERE `role_id` = 5 AND `resource_id` = @merchant_resource_id
+);
+
+-- 15. 为商家角色分配商品和订单相关资源
+INSERT INTO `ums_role_resource_relation` (`role_id`, `resource_id`)
+SELECT @merchant_role_id, `id` FROM `ums_resource`
+WHERE `url` IN ('/product/**', '/order/**', '/admin/info', '/admin/logout')
+AND NOT EXISTS (
+    SELECT 1 FROM `ums_role_resource_relation`
+    WHERE `role_id` = @merchant_role_id AND `resource_id` = `ums_resource`.`id`
+);
+
+-- 16. 为 test 账号分配商家角色，并移除超级管理员角色
 DELETE FROM `ums_admin_role_relation`
 WHERE `admin_id` = (SELECT `id` FROM `ums_admin` WHERE `username` = 'test');
 

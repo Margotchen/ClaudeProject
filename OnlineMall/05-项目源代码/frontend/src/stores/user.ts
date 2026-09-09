@@ -14,6 +14,8 @@ export const useUserStore = defineStore(
       roles: [],
       token: '',
       menus: [],
+      merchantId: undefined,
+      shopId: undefined,
     })
 
     // 用户登录
@@ -37,6 +39,8 @@ export const useUserStore = defineStore(
       }
       userInfo.value.menus = res.data.menus
       userInfo.value.avatar = res.data.icon
+      userInfo.value.merchantId = res.data.merchantId
+      userInfo.value.shopId = res.data.shopId
     }
 
     // 用户登出

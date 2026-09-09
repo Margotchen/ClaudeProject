@@ -25,6 +25,10 @@ public class AdminUserDetails implements UserDetails {
         this.resourceList = resourceList;
     }
 
+    public UmsAdmin getUmsAdmin() {
+        return umsAdmin;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         //返回当前用户所拥有的资源

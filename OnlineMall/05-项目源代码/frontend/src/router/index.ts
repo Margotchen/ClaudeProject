@@ -362,6 +362,12 @@ export const asyncRouterMap: RouteRecordExt[] = [
         meta: { title: '资源分类' },
         hidden: true,
       },
+      {
+        path: 'merchant',
+        name: 'merchant',
+        component: () => import('@/views/ums/merchant/index.vue'),
+        meta: { title: '商家管理', icon: 'ums-admin' },
+      },
     ],
   },
 ]

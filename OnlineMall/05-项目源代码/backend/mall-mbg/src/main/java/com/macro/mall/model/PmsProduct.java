@@ -10,6 +10,9 @@ public class PmsProduct implements Serializable {
 
     private Long brandId;
 
+    @Schema(title = "所属商家ID")
+    private Long shopId;
+
     private Long productCategoryId;
 
     private Long feightTemplateId;
@@ -136,6 +139,14 @@ public class PmsProduct implements Serializable {
 
     public void setBrandId(Long brandId) {
         this.brandId = brandId;
+    }
+
+    public Long getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(Long shopId) {
+        this.shopId = shopId;
     }
 
     public Long getProductCategoryId() {
@@ -466,6 +477,7 @@ public class PmsProduct implements Serializable {
         sb.append("Hash = ").append(hashCode());
         sb.append(", id=").append(id);
         sb.append(", brandId=").append(brandId);
+        sb.append(", shopId=").append(shopId);
         sb.append(", productCategoryId=").append(productCategoryId);
         sb.append(", feightTemplateId=").append(feightTemplateId);
         sb.append(", productAttributeCategoryId=").append(productAttributeCategoryId);

@@ -5,6 +5,7 @@
     <id column="id" jdbcType="BIGINT" property="id" />
     <result column="member_id" jdbcType="BIGINT" property="memberId" />
     <result column="coupon_id" jdbcType="BIGINT" property="couponId" />
+    <result column="shop_id" jdbcType="BIGINT" property="shopId" />
     <result column="order_sn" jdbcType="VARCHAR" property="orderSn" />
     <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
     <result column="member_username" jdbcType="VARCHAR" property="memberUsername" />
@@ -106,7 +107,7 @@
     </where>
   </sql>
   <sql id="Base_Column_List">
-    id, member_id, coupon_id, order_sn, create_time, member_username, total_amount, pay_amount, 
+    id, member_id, coupon_id, shop_id, order_sn, create_time, member_username, total_amount, pay_amount, 
     freight_amount, promotion_amount, integration_amount, coupon_amount, discount_amount, 
     pay_type, source_type, status, order_type, delivery_company, delivery_sn, auto_confirm_day, 
     integration, growth, promotion_info, bill_type, bill_header, bill_content, bill_receiver_phone, 
@@ -148,7 +149,7 @@
     <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Long">
       SELECT LAST_INSERT_ID()
     </selectKey>
-    insert into oms_order (member_id, coupon_id, order_sn, 
+    insert into oms_order (member_id, coupon_id, shop_id, order_sn,
       create_time, member_username, total_amount, 
       pay_amount, freight_amount, promotion_amount, 
       integration_amount, coupon_amount, discount_amount, 
@@ -163,7 +164,7 @@
       delete_status, use_integration, payment_time, 
       delivery_time, receive_time, comment_time, 
       modify_time)
-    values (#{memberId,jdbcType=BIGINT}, #{couponId,jdbcType=BIGINT}, #{orderSn,jdbcType=VARCHAR}, 
+    values (#{memberId,jdbcType=BIGINT}, #{couponId,jdbcType=BIGINT}, #{shopId,jdbcType=BIGINT}, #{orderSn,jdbcType=VARCHAR},
       #{createTime,jdbcType=TIMESTAMP}, #{memberUsername,jdbcType=VARCHAR}, #{totalAmount,jdbcType=DECIMAL}, 
       #{payAmount,jdbcType=DECIMAL}, #{freightAmount,jdbcType=DECIMAL}, #{promotionAmount,jdbcType=DECIMAL}, 
       #{integrationAmount,jdbcType=DECIMAL}, #{couponAmount,jdbcType=DECIMAL}, #{discountAmount,jdbcType=DECIMAL}, 
@@ -190,6 +191,9 @@
       </if>
       <if test="couponId != null">
         coupon_id,
+      </if>
+      <if test="shopId != null">
+        shop_id,
       </if>
       <if test="orderSn != null">
         order_sn,
@@ -321,6 +325,9 @@
       </if>
       <if test="couponId != null">
         #{couponId,jdbcType=BIGINT},
+      </if>
+      <if test="shopId != null">
+        #{shopId,jdbcType=BIGINT},
       </if>
       <if test="orderSn != null">
         #{orderSn,jdbcType=VARCHAR},
@@ -465,6 +472,9 @@
       <if test="row.couponId != null">
         coupon_id = #{row.couponId,jdbcType=BIGINT},
       </if>
+      <if test="row.shopId != null">
+        shop_id = #{row.shopId,jdbcType=BIGINT},
+      </if>
       <if test="row.orderSn != null">
         order_sn = #{row.orderSn,jdbcType=VARCHAR},
       </if>
@@ -598,6 +608,7 @@
     set id = #{row.id,jdbcType=BIGINT},
       member_id = #{row.memberId,jdbcType=BIGINT},
       coupon_id = #{row.couponId,jdbcType=BIGINT},
+      shop_id = #{row.shopId,jdbcType=BIGINT},
       order_sn = #{row.orderSn,jdbcType=VARCHAR},
       create_time = #{row.createTime,jdbcType=TIMESTAMP},
       member_username = #{row.memberUsername,jdbcType=VARCHAR},
@@ -651,6 +662,9 @@
       </if>
       <if test="couponId != null">
         coupon_id = #{couponId,jdbcType=BIGINT},
+      </if>
+      <if test="shopId != null">
+        shop_id = #{shopId,jdbcType=BIGINT},
       </if>
       <if test="orderSn != null">
         order_sn = #{orderSn,jdbcType=VARCHAR},
@@ -782,6 +796,7 @@
     update oms_order
     set member_id = #{memberId,jdbcType=BIGINT},
       coupon_id = #{couponId,jdbcType=BIGINT},
+      shop_id = #{shopId,jdbcType=BIGINT},
       order_sn = #{orderSn,jdbcType=VARCHAR},
       create_time = #{createTime,jdbcType=TIMESTAMP},
       member_username = #{memberUsername,jdbcType=VARCHAR},
