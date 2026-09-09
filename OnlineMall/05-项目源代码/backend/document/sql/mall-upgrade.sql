@@ -1,0 +1,95 @@
+-- 在线商城订单管理系统 - 数据库升级脚本
+-- 阶段 2：商家角色与数据权限改造
+
+-- 1. 创建商家信息表
+CREATE TABLE IF NOT EXISTS `ums_merchant` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `shop_name` varchar(255) NOT NULL COMMENT '店铺名称',
+  `status` int NOT NULL DEFAULT '1' COMMENT '状态：0-禁用 1-启用',
+  `contact_name` varchar(100) DEFAULT NULL COMMENT '联系人',
+  `contact_phone` varchar(20) DEFAULT NULL COMMENT '联系电话',
+  `create_time` datetime DEFAULT NULL,
+  `update_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商家信息表';
+
+-- 2. 初始化示例商家
+INSERT INTO `ums_merchant` (`shop_name`, `status`, `contact_name`, `contact_phone`, `create_time`, `update_time`)
+SELECT '示例店铺', 1, '张三', '13800138000', NOW(), NOW()
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM `ums_merchant` WHERE `shop_name` = '示例店铺');
+
+-- 3. 扩展后台用户表，增加所属商家ID
+SET @sql = (
+    SELECT IF(
+        COUNT(*) = 0,
+        'ALTER TABLE `ums_admin` ADD COLUMN `merchant_id` bigint DEFAULT NULL COMMENT "所属商家ID" AFTER `status`',
+        'SELECT 1'
+    )
+    FROM `INFORMATION_SCHEMA`.`COLUMNS`
+    WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'ums_admin' AND `COLUMN_NAME` = 'merchant_id'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 4. 将测试账号 test 关联到示例商家
+UPDATE `ums_admin` SET `merchant_id` = 1 WHERE `username` = 'test';
+
+-- 5. 扩展商品表，增加所属店铺ID
+SET @sql = (
+    SELECT IF(
+        COUNT(*) = 0,
+        'ALTER TABLE `pms_product` ADD COLUMN `shop_id` bigint DEFAULT NULL COMMENT "所属商家ID" AFTER `brand_id`',
+        'SELECT 1'
+    )
+    FROM `INFORMATION_SCHEMA`.`COLUMNS`
+    WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'pms_product' AND `COLUMN_NAME` = 'shop_id'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 6. 初始化现有商品归属到示例商家
+UPDATE `pms_product` SET `shop_id` = 1 WHERE `shop_id` IS NULL;
+
+-- 7. 扩展订单表，增加所属店铺ID
+SET @sql = (
+    SELECT IF(
+        COUNT(*) = 0,
+        'ALTER TABLE `oms_order` ADD COLUMN `shop_id` bigint DEFAULT NULL COMMENT "所属商家ID" AFTER `member_id`',
+        'SELECT 1'
+    )
+    FROM `INFORMATION_SCHEMA`.`COLUMNS`
+    WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'oms_order' AND `COLUMN_NAME` = 'shop_id'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 8. 初始化现有订单归属到示例商家
+UPDATE `oms_order` SET `shop_id` = 1 WHERE `shop_id` IS NULL;
+
+-- 9. 创建商家角色
+INSERT INTO `ums_role` (`name`, `description`, `admin_count`, `create_time`, `status`, `sort`)
+SELECT '商家', '商家角色，仅可管理自身店铺数据', 0, NOW(), 1, 0
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM `ums_role` WHERE `name` = '商家');
+
+SET @merchant_role_id = (SELECT `id` FROM `ums_role` WHERE `name` = '商家');
+
+-- 10. 为商家角色分配菜单权限（商品列表、添加商品、订单列表、退货申请处理）
+INSERT INTO `ums_role_menu_relation` (`role_id`, `menu_id`)
+SELECT @merchant_role_id, `id` FROM `ums_menu`
+WHERE `name` IN ('product', 'addProduct', 'order', 'returnApply')
+AND NOT EXISTS (
+    SELECT 1 FROM `ums_role_menu_relation`
+    WHERE `role_id` = @merchant_role_id AND `menu_id` = `ums_menu`.`id`
+);
+
+-- 11. 为 test 账号分配商家角色，并移除超级管理员角色
+DELETE FROM `ums_admin_role_relation`
+WHERE `admin_id` = (SELECT `id` FROM `ums_admin` WHERE `username` = 'test');
+
+INSERT INTO `ums_admin_role_relation` (`admin_id`, `role_id`)
+SELECT `id`, @merchant_role_id FROM `ums_admin` WHERE `username` = 'test';
