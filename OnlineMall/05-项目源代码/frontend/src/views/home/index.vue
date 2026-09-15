@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { str2Date } from '@/utils/datetime'
 import img_home_order from '@/assets/images/home_order.png'
 import img_home_today_amount from '@/assets/images/home_today_amount.png'
@@ -15,21 +15,21 @@ import {
   TitleComponent
 } from 'echarts/components'
 
-// 通过use()方法按需注入ECharts的模块
+// 按需注入 ECharts 模块
 use([
-  CanvasRenderer, // 画布渲染器
-  LineChart, // 折线图的绘制功能
-  GridComponent, // 直角坐标系网格组件
-  TooltipComponent, // 鼠标悬停时显示数据详情
-  LegendComponent,  // 图例组件
-  TitleComponent // 显示图表标题
+  CanvasRenderer,
+  LineChart,
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  TitleComponent
 ])
 
 // 折线图数据类型
 type LineChartDataItem = {
-  date: string, // 交易日期
-  orderCount: number, // 订单数量
-  orderAmount: number // 订单金额
+  date: string
+  orderCount: number
+  orderAmount: number
 }
 
 // 默认图表数据
@@ -51,48 +51,58 @@ const defaultLineChartData: LineChartDataItem[] = [
   { date: '2026-01-15', orderCount: 40, orderAmount: 4293 }
 ]
 
-// 默认起始日期
+// 默认起始日期（复制使用，避免被外部组件意外修改）
 const defaultStartDate = new Date(2026, 0, 1)
 
-// 日期选择器日期范围[start,end]
+// 日期选择器日期范围
 const datePickerRange = ref<Date[]>([])
+
 // 初始化日期选择器数据
 const initDatePickerRange = () => {
-  const start = defaultStartDate
+  const start = new Date(defaultStartDate.getTime())
   const end = new Date(start.getTime() + 1000 * 60 * 60 * 24 * 7)
-  datePickerRange.value = [start, end] as Date[]
+  datePickerRange.value = [start, end]
 }
+
 // 图表数据
 const lineChartData = ref<LineChartDataItem[]>([])
 // 图表数据加载状态
 const loading = ref(false)
+
 // 获取图表数据
 const getLineChartData = () => {
   loading.value = true
   setTimeout(() => {
-    const start = datePickerRange.value[0]
-    const end = datePickerRange.value[1]
-    // 获取在当前区间范围内的数据
+    const start = datePickerRange.value?.[0]
+    const end = datePickerRange.value?.[1]
+    if (!start || !end) {
+      lineChartData.value = []
+      loading.value = false
+      return
+    }
     lineChartData.value = defaultLineChartData.filter(item => {
       const currDate = str2Date(item.date)
-      return currDate!.getTime() >= start!.getTime() && currDate!.getTime() <= end!.getTime()
+      if (!currDate) {
+        return false
+      }
+      return currDate.getTime() >= start.getTime() && currDate.getTime() <= end.getTime()
     })
     loading.value = false
   }, 1000)
 }
 
-// 组件挂载成功初始化数据
+// 组件挂载后初始化数据
 onMounted(() => {
   initDatePickerRange()
   getLineChartData()
 })
 
-// 日期选择器选项
+// 日期选择器快捷选项
 const shortcuts = [
   {
     text: '最近一周',
     value: () => {
-      const start = defaultStartDate
+      const start = new Date(defaultStartDate.getTime())
       const end = new Date(start.getTime() + 1000 * 60 * 60 * 24 * 7)
       return [start, end]
     }
@@ -100,24 +110,19 @@ const shortcuts = [
   {
     text: '最近一月',
     value: () => {
-      const start = defaultStartDate
+      const start = new Date(defaultStartDate.getTime())
       const end = new Date(start.getTime() + 1000 * 60 * 60 * 24 * 30)
       return [start, end]
     }
   }
 ]
+
 // 处理日期范围变化
 const handleDatePickerRangeChange = () => {
   getLineChartData()
 }
 
-// X 轴：日期（2026-01-01 到 2026-01-15）
-// 左 Y 轴：订单数量（0-100）
-// 右 Y 轴：订单金额（0-10000+）
-// 蓝色曲线：订单数量趋势（带填充）
-// 绿色曲线：订单金额趋势（带填充）
-// 鼠标悬停：显示交叉线和详细数据
-// vue-charts中的选项
+// 图表配置
 const chartOption = computed(() => {
   const dates = lineChartData.value.map(item => item.date)
   const orderCounts = lineChartData.value.map(item => item.orderCount)
@@ -138,28 +143,18 @@ const chartOption = computed(() => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: dates,
-      axisLabel: {
-        formatter: '{value}',
-        rotate: 0
-      }
+      data: dates
     },
     yAxis: [
       {
         type: 'value',
         name: '订单数量',
-        position: 'left',
-        axisLabel: {
-          formatter: '{value}'
-        }
+        position: 'left'
       },
       {
         type: 'value',
         name: '订单金额',
-        position: 'right',
-        axisLabel: {
-          formatter: '{value}'
-        }
+        position: 'right'
       }
     ],
     series: [
@@ -191,51 +186,24 @@ const chartOption = computed(() => {
 
 <template>
   <div class="app-container">
-    <div class="address-layout">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <div class="out-border">
-            <div class="layout-title">Spring Boot项目学习</div>
-            <div class="color-main address-content">
-              <a href="https://www.macrozheng.com" target="_blank">mall学习教程</a>
-            </div>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="out-border">
-            <div class="layout-title">Spring Cloud项目学习</div>
-            <div class="color-main address-content">
-              <a href="https://cloud.macrozheng.com" target="_blank">mall-swarm学习教程</a>
-            </div>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="out-border">
-            <div class="layout-title">点Star支持项目</div>
-            <div class="color-main address-content">
-              <a href="https://github.com/macrozheng/mall" target="_blank">mall项目</a>
-            </div>
-          </div>
-        </el-col>
-      </el-row>
-    </div>
+    <!-- 核心指标 -->
     <div class="total-layout">
       <el-row :gutter="20">
-        <el-col :span="6">
+        <el-col :span="8">
           <div class="total-frame">
             <img :src="img_home_order" class="total-icon">
             <div class="total-title">今日订单总数</div>
             <div class="total-value">200</div>
           </div>
         </el-col>
-        <el-col :span="6">
+        <el-col :span="8">
           <div class="total-frame">
             <img :src="img_home_today_amount" class="total-icon">
             <div class="total-title">今日销售总额</div>
             <div class="total-value">￥5000.00</div>
           </div>
         </el-col>
-        <el-col :span="6">
+        <el-col :span="8">
           <div class="total-frame">
             <img :src="img_home_yesterday_amount" class="total-icon">
             <div class="total-title">昨日销售总额</div>
@@ -244,14 +212,8 @@ const chartOption = computed(() => {
         </el-col>
       </el-row>
     </div>
-    <el-card class="mine-layout">
-      <div style="text-align: center">
-        <img width="140px" height="140px"
-          src="http://macro-oss.oss-cn-shenzhen.aliyuncs.com/mall/banner/qrcode_for_macrozheng_258.jpg">
-      </div>
-      <div style="text-align: center">扫码关注作者<span class="color-main">公众号</span></div>
-      <div style="text-align: center;margin-top: 5px">获取更多技术干货</div>
-    </el-card>
+
+    <!-- 待处理事务 -->
     <div class="un-handle-layout">
       <div class="layout-title">待处理事务</div>
       <div class="un-handle-content">
@@ -259,39 +221,19 @@ const chartOption = computed(() => {
           <el-col :span="8">
             <div class="un-handle-item">
               <span class="font-medium">待支付订单</span>
-              <span style="float: right" class="color-danger">(10)</span>
+              <span class="color-danger un-handle-count">10</span>
             </div>
           </el-col>
-          <el-col :span="8">
-            <div class="un-handle-item">
-              <span class="font-medium">已完成订单</span>
-              <span style="float: right" class="color-danger">(10)</span>
-            </div>
-          </el-col>
-          <el-col :span="8">
-            <div class="un-handle-item">
-              <span class="font-medium">待确认收货订单</span>
-              <span style="float: right" class="color-danger">(10)</span>
-            </div>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
           <el-col :span="8">
             <div class="un-handle-item">
               <span class="font-medium">待发货订单</span>
-              <span style="float: right" class="color-danger">(10)</span>
-            </div>
-          </el-col>
-          <el-col :span="8">
-            <div class="un-handle-item">
-              <span class="font-medium">新缺货登记</span>
-              <span style="float: right" class="color-danger">(10)</span>
+              <span class="color-danger un-handle-count">10</span>
             </div>
           </el-col>
           <el-col :span="8">
             <div class="un-handle-item">
               <span class="font-medium">待处理退款申请</span>
-              <span style="float: right" class="color-danger">(10)</span>
+              <span class="color-danger un-handle-count">10</span>
             </div>
           </el-col>
         </el-row>
@@ -299,30 +241,32 @@ const chartOption = computed(() => {
           <el-col :span="8">
             <div class="un-handle-item">
               <span class="font-medium">已发货订单</span>
-              <span style="float: right" class="color-danger">(10)</span>
+              <span class="color-danger un-handle-count">10</span>
             </div>
           </el-col>
           <el-col :span="8">
             <div class="un-handle-item">
               <span class="font-medium">待处理退货订单</span>
-              <span style="float: right" class="color-danger">(10)</span>
+              <span class="color-danger un-handle-count">10</span>
             </div>
           </el-col>
           <el-col :span="8">
             <div class="un-handle-item">
-              <span class="font-medium">广告位即将到期</span>
-              <span style="float: right" class="color-danger">(10)</span>
+              <span class="font-medium">新缺货登记</span>
+              <span class="color-danger un-handle-count">10</span>
             </div>
           </el-col>
         </el-row>
       </div>
     </div>
+
+    <!-- 商品与用户总览 -->
     <div class="overview-layout">
       <el-row :gutter="20">
         <el-col :span="12">
           <div class="out-border">
             <div class="layout-title">商品总览</div>
-            <div style="padding: 40px">
+            <div class="overview-content">
               <el-row>
                 <el-col :span="6" class="color-danger overview-item-value">100</el-col>
                 <el-col :span="6" class="color-danger overview-item-value">400</el-col>
@@ -341,7 +285,7 @@ const chartOption = computed(() => {
         <el-col :span="12">
           <div class="out-border">
             <div class="layout-title">用户总览</div>
-            <div style="padding: 40px">
+            <div class="overview-content">
               <el-row>
                 <el-col :span="6" class="color-danger overview-item-value">100</el-col>
                 <el-col :span="6" class="color-danger overview-item-value">200</el-col>
@@ -359,55 +303,56 @@ const chartOption = computed(() => {
         </el-col>
       </el-row>
     </div>
+
+    <!-- 订单统计 -->
     <div class="statistics-layout">
       <div class="layout-title">订单统计</div>
       <el-row>
         <el-col :span="4">
-          <div style="padding: 20px">
-            <div>
-              <div style="color: #909399;font-size: 14px">本月订单总数</div>
-              <div style="color: #606266;font-size: 24px;padding: 10px 0">10000</div>
-              <div>
-                <span class="color-success" style="font-size: 14px">+10%</span>
-                <span style="color: #C0C4CC;font-size: 14px">同比上月</span>
+          <div class="statistics-summary">
+            <div class="summary-item">
+              <div class="summary-label">本月订单总数</div>
+              <div class="summary-value">10000</div>
+              <div class="summary-trend">
+                <span class="color-success">+10%</span>
+                <span class="summary-compare">同比上月</span>
               </div>
             </div>
-            <div style="margin-top: 20px;">
-              <div style="color: #909399;font-size: 14px">本周订单总数</div>
-              <div style="color: #606266;font-size: 24px;padding: 10px 0">1000</div>
-              <div>
-                <span class="color-danger" style="font-size: 14px">-10%</span>
-                <span style="color: #C0C4CC;font-size: 14px">同比上周</span>
+            <div class="summary-item">
+              <div class="summary-label">本周订单总数</div>
+              <div class="summary-value">1000</div>
+              <div class="summary-trend">
+                <span class="color-danger">-10%</span>
+                <span class="summary-compare">同比上周</span>
               </div>
             </div>
-            <div style="margin-top: 20px;">
-              <div style="color: #909399;font-size: 14px">本月销售总额</div>
-              <div style="color: #606266;font-size: 24px;padding: 10px 0">100000</div>
-              <div>
-                <span class="color-success" style="font-size: 14px">+10%</span>
-                <span style="color: #C0C4CC;font-size: 14px">同比上月</span>
+            <div class="summary-item">
+              <div class="summary-label">本月销售总额</div>
+              <div class="summary-value">100000</div>
+              <div class="summary-trend">
+                <span class="color-success">+10%</span>
+                <span class="summary-compare">同比上月</span>
               </div>
             </div>
-            <div style="margin-top: 20px;">
-              <div style="color: #909399;font-size: 14px">本周销售总额</div>
-              <div style="color: #606266;font-size: 24px;padding: 10px 0">50000</div>
-              <div>
-                <span class="color-danger" style="font-size: 14px">-10%</span>
-                <span style="color: #C0C4CC;font-size: 14px">同比上周</span>
+            <div class="summary-item">
+              <div class="summary-label">本周销售总额</div>
+              <div class="summary-value">50000</div>
+              <div class="summary-trend">
+                <span class="color-danger">-10%</span>
+                <span class="summary-compare">同比上周</span>
               </div>
             </div>
           </div>
         </el-col>
         <el-col :span="20">
-          <div style="padding: 10px;border-left:1px solid #DCDFE6">
-            <el-date-picker style="float: right;z-index: 1" size="small" v-model="datePickerRange" type="daterange"
+          <div class="statistics-chart">
+            <el-date-picker class="chart-date-picker" size="small" v-model="datePickerRange" type="daterange"
               align="right" unlink-panels range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期"
               :shortcuts="shortcuts" @change="handleDatePickerRangeChange">
             </el-date-picker>
-            <div style="height: 400px;">
+            <div class="chart-container">
               <v-chart v-if="!loading" :option="chartOption" autoresize />
-              <div v-else
-                style="display: flex; justify-content: center; align-items: center; height: 100%;width: 100%;">
+              <div v-else class="chart-loading">
                 <el-skeleton :rows="5" animated />
               </div>
             </div>
@@ -426,7 +371,7 @@ const chartOption = computed(() => {
 }
 
 .total-layout {
-  margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 .total-frame {
@@ -436,7 +381,6 @@ const chartOption = computed(() => {
 }
 
 .total-icon {
-  color: #409EFF;
   width: 60px;
   height: 60px;
 }
@@ -458,8 +402,8 @@ const chartOption = computed(() => {
 }
 
 .un-handle-layout {
-  margin-top: 20px;
   border: 1px solid #DCDFE6;
+  margin-bottom: 20px;
 }
 
 .layout-title {
@@ -476,10 +420,21 @@ const chartOption = computed(() => {
 .un-handle-item {
   border-bottom: 1px solid #EBEEF5;
   padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.un-handle-count {
+  font-size: 14px;
 }
 
 .overview-layout {
-  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.overview-content {
+  padding: 40px;
 }
 
 .overview-item-value {
@@ -497,20 +452,53 @@ const chartOption = computed(() => {
 }
 
 .statistics-layout {
-  margin-top: 20px;
   border: 1px solid #DCDFE6;
 }
 
-.mine-layout {
-  position: absolute;
-  right: 140px;
-  top: 107px;
-  width: 250px;
-  height: 235px;
+.statistics-summary {
+  padding: 20px;
 }
 
-.address-content {
-  padding: 20px;
-  font-size: 18px
+.summary-item {
+  margin-bottom: 20px;
+}
+
+.summary-label {
+  color: #909399;
+  font-size: 14px;
+}
+
+.summary-value {
+  color: #606266;
+  font-size: 24px;
+  padding: 10px 0;
+}
+
+.summary-compare {
+  color: #C0C4CC;
+  font-size: 14px;
+  margin-left: 5px;
+}
+
+.statistics-chart {
+  padding: 10px;
+  border-left: 1px solid #DCDFE6;
+}
+
+.chart-date-picker {
+  float: right;
+  z-index: 1;
+}
+
+.chart-container {
+  height: 400px;
+}
+
+.chart-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
 }
 </style>

@@ -45,9 +45,20 @@ export const useUserStore = defineStore(
 
     // 用户登出
     const userLogout = async () => {
-      await adminLogoutAPI()
+      try {
+        await adminLogoutAPI()
+      } catch (e) {
+        // 服务端退出接口失败时，仍要清空本地登录状态
+        console.warn('调用服务端登出接口失败，已清空本地状态', e)
+      }
       userInfo.value.token = ''
       userInfo.value.roles = []
+      userInfo.value.username = ''
+      userInfo.value.password = ''
+      userInfo.value.avatar = ''
+      userInfo.value.menus = []
+      userInfo.value.merchantId = undefined
+      userInfo.value.shopId = undefined
     }
 
     // 前端登出

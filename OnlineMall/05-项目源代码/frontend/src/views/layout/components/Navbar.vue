@@ -15,7 +15,12 @@ const appStore = useAppStore()
 const userStore = useUserStore()
 
 const sidebar = computed(() => appStore.sidebar)
-const avatar = computed(() => userStore.userInfo.avatar)
+const avatar = computed(() => userStore.userInfo.avatar || '')
+const username = computed(() => userStore.userInfo.username || '')
+const defaultAvatarText = computed(() => {
+  const name = username.value || 'U'
+  return name.charAt(0).toUpperCase()
+})
 
 // 处理开关侧边栏操作
 const handleToggleSideBar = () => {
@@ -36,7 +41,9 @@ const handleLogout = async () => {
     <breadcrumb></breadcrumb>
     <el-dropdown class="avatar-container" trigger="click">
       <div class="avatar-wrapper">
-        <img class="user-avatar" :src="avatar">
+        <el-avatar class="user-avatar" :size="40" :src="avatar" fit="cover">
+          {{ defaultAvatarText }}
+        </el-avatar>
         <el-icon class="el-icon-caret-bottom">
           <arrow-down />
         </el-icon>

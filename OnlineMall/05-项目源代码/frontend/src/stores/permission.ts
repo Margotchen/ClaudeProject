@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { shallowRef } from 'vue'
+import { ref, shallowRef } from 'vue'
 import { asyncRouterMap, constantRouterMap } from '@/router/index'
 import type { UmsMenu } from '@/types/menu'
 import type { RouteRecordExt } from '@/types/router'
@@ -66,6 +66,8 @@ export const usePermissionStore = defineStore('permission', () => {
   const routers = shallowRef(constantRouterMap)
   // 有权限访问的动态路由
   const addRouters = shallowRef<RouteRecordExt[]>([])
+  // 动态路由是否已生成（避免空菜单导致反复生成）
+  const isGenerated = ref(false)
   // 是否为测试模式
   const testMode = false
 
@@ -94,11 +96,13 @@ export const usePermissionStore = defineStore('permission', () => {
     sortRouters(accessedRouters)
     addRouters.value = accessedRouters
     routers.value = constantRouterMap.concat(accessedRouters)
+    isGenerated.value = true
   }
 
   return {
     routers,
     addRouters,
+    isGenerated,
     generateRoutes,
   }
 })

@@ -39,7 +39,7 @@ export type UserInfo = Pick<UserInfoResult, 'username' | 'menus' | 'roles' | 'me
   /** 登录token */
   token: string
   /** 头像 */
-  avatar
+  avatar: string
 }
 
 /** 管理员信息 */

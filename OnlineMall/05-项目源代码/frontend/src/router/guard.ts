@@ -5,7 +5,7 @@ import { useUserStore } from '@/stores/user'
 import usePermissionStore from '@/stores/permission'
 
 // 无需登陆的白名单路径
-const whiteList = ['/login']
+const whiteList = ['/login', '/mall', '/mall/index']
 // 配置路由前置守卫函数（每次路由跳转都会执行）
 router.beforeEach((to, from, next) => {
   NProgress.start()
@@ -17,7 +17,7 @@ router.beforeEach((to, from, next) => {
       next({ path: '/' })
       NProgress.done()
     } else {
-      if (permissionStore.addRouters.length === 0) {
+      if (!permissionStore.isGenerated) {
         // 登录状态下无动态路由时根据menus生成动态路由
         permissionStore.generateRoutes({
           menus: userStore.userInfo.menus,

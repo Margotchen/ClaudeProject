@@ -27,6 +27,10 @@ http.interceptors.request.use(
 http.interceptors.response.use(
   response => {
     const res: CommonResult<unknown> = response.data
+    // 退出登录接口本身可能返回 401，此时不应再弹「重新登录」对话框
+    // 兼容 baseURL 前缀或代理后的完整 URL
+    const logoutUrl = response.config.url || ''
+    const isLogoutRequest = logoutUrl === '/admin/logout' || logoutUrl.endsWith('/admin/logout')
     if (res.code !== 200) {
       // code为非200是抛错，这里统一处理提示信息
       ElMessage({
@@ -35,7 +39,7 @@ http.interceptors.response.use(
         duration: 3 * 1000,
       })
       // 401:未登录;
-      if (res.code === 401) {
+      if (res.code === 401 && !isLogoutRequest) {
         ElMessageBox.confirm('你已被登出，可以取消继续留在该页面，或者重新登录', '确定登出', {
           confirmButtonText: '重新登录',
           cancelButtonText: '取消',

@@ -17,24 +17,21 @@ export const constantRouterMap: RouteRecordExt[] = [
         component: () => import('@/views/home/index.vue'),
         meta: { title: '首页', icon: 'dashboard' },
       },
+    ],
+  },
+  {
+    path: '/mall',
+    component: () => import('@/views/mall/layout/index.vue'),
+    redirect: '/mall/index',
+    name: 'mall',
+    meta: { title: '商品橱窗', icon: 'product' },
+    children: [
       {
-        name: 'document',
-        path: 'https://www.macrozheng.com',
-        component: () => import('@/views/normal/link/index.vue'),
-        meta: { title: '学习教程', icon: 'document' },
+        path: 'index',
+        name: 'mallIndex',
+        component: () => import('@/views/mall/index.vue'),
+        meta: { title: '商品橱窗', icon: 'product' },
       },
-      {
-        name: 'video',
-        path: 'https://www.macrozheng.com/mall/foreword/mall_video.html',
-        component: () => import('@/views/normal/link/index.vue'),
-        meta: { title: '视频教程', icon: 'video' },
-      },
-      // {
-      //   path: 'test',
-      //   name: 'test',
-      //   component: () => import('@/views/test/index.vue'),
-      //   meta: { title: '组件测试', icon: 'product-cate' },
-      // },
     ],
   },
 ]
