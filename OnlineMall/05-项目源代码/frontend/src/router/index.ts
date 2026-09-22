@@ -34,6 +34,60 @@ export const constantRouterMap: RouteRecordExt[] = [
       },
     ],
   },
+  {
+    path: '/buyer/login',
+    component: () => import('@/views/buyer/login/index.vue'),
+    hidden: true,
+  },
+  {
+    path: '/buyer/register',
+    component: () => import('@/views/buyer/register/index.vue'),
+    hidden: true,
+  },
+  {
+    path: '/buyer',
+    component: () => import('@/views/buyer/layout/index.vue'),
+    redirect: '/buyer/index',
+    name: 'buyer',
+    children: [
+      {
+        path: 'index',
+        name: 'buyerIndex',
+        component: () => import('@/views/buyer/index/index.vue'),
+        meta: { title: '商城首页' },
+      },
+      {
+        path: 'product/:id',
+        name: 'buyerProduct',
+        component: () => import('@/views/buyer/product/index.vue'),
+        meta: { title: '商品详情' },
+      },
+      {
+        path: 'cart',
+        name: 'buyerCart',
+        component: () => import('@/views/buyer/cart/index.vue'),
+        meta: { title: '购物车' },
+      },
+      {
+        path: 'order/confirm',
+        name: 'buyerOrderConfirm',
+        component: () => import('@/views/buyer/order/confirm.vue'),
+        meta: { title: '确认订单' },
+      },
+      {
+        path: 'order/list',
+        name: 'buyerOrderList',
+        component: () => import('@/views/buyer/order/list.vue'),
+        meta: { title: '我的订单' },
+      },
+      {
+        path: 'profile',
+        name: 'buyerProfile',
+        component: () => import('@/views/buyer/profile/index.vue'),
+        meta: { title: '个人中心' },
+      },
+    ],
+  },
 ]
 
 export const asyncRouterMap: RouteRecordExt[] = [
