@@ -309,6 +309,16 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements Ex
         record.setGraderId(SecurityUtils.getCurrentUserId());
         record.setGradeTime(LocalDateTime.now());
         record.setStatus(2);
+        // 将每题得分写回答案JSON，供再次批改时回填，避免重复批改丢失原分数
+        if (StrUtil.isNotBlank(record.getAnswers()) && dto.getEssayScores() != null) {
+            Map<Integer, Integer> scoreMap = dto.getEssayScores().stream()
+                    .collect(Collectors.toMap(ExamGradeDTO.EssayScoreDTO::getIndex,
+                            ExamGradeDTO.EssayScoreDTO::getScore));
+            List<ExamSubmitDTO.ExamAnswerDTO> answers = JSONUtil.toList(record.getAnswers(),
+                    ExamSubmitDTO.ExamAnswerDTO.class);
+            answers.forEach(a -> a.setScore(scoreMap.get(a.getIndex())));
+            record.setAnswers(JSONUtil.toJsonStr(answers));
+        }
         recordMapper.updateById(record);
     }
 

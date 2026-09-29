@@ -24,5 +24,8 @@ public class ExamSubmitDTO {
 
         /** CHOICE 为选项字母，JUDGE 为 "true"/"false"，ESSAY 为文本 */
         private String answer;
+
+        /** 简答题批改得分（批改时写入，用于回填） */
+        private Integer score;
     }
 }

@@ -228,7 +228,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus } from '@element-plus/icons-vue'
@@ -276,7 +276,7 @@ const form = reactive({ id: null, courseId: null, title: '', window: [], duratio
 const formRules = {
   courseId: [{ required: true, message: '请选择课程', trigger: 'change' }],
   title: [{ required: true, message: '请输入考试标题', trigger: 'blur' }],
-  window: [{ required: true, message: '请选择考试窗口', trigger: 'change' }],
+  window: [{ required: true, type: 'array', message: '请选择考试窗口', trigger: 'change' }],
   duration: [{ required: true, message: '请设置时长', trigger: 'blur' }]
 }
 const totalScorePreview = computed(() => form.questions.reduce((s, q) => s + (q.score || 0), 0))
@@ -306,6 +306,8 @@ async function openEdit(row) {
     addQuestion('CHOICE')
   }
   editVisible.value = true
+  // 清除上次遗留的校验红字
+  nextTick(() => formRef.value?.clearValidate())
 }
 async function handleSave() {
   await formRef.value.validate()
@@ -388,7 +390,10 @@ async function openGrade(row) {
   gradeComment.value = row.comment || ''
   Object.keys(essayScoreMap).forEach(k => delete essayScoreMap[k])
   gradeDetail.value.questions.forEach((q, qi) => {
-    if (q.type === 'ESSAY') essayScoreMap[qi] = 0
+    if (q.type !== 'ESSAY') return
+    // 回填已批改的分数，避免「查看」后再次提交用 0 覆盖原成绩
+    const a = (gradeDetail.value.myAnswers || []).find(x => x.index === qi)
+    essayScoreMap[qi] = a?.score ?? 0
   })
   gradeVisible.value = true
 }

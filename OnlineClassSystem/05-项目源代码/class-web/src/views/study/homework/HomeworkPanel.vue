@@ -109,6 +109,7 @@
             :limit="1"
             :show-file-list="true"
             :http-request="doUpload"
+            :before-upload="beforeUpload"
             :on-remove="() => { submitForm.attachmentName = ''; submitForm.attachmentPath = '' }"
           >
             <el-button :icon="UploadFilled">上传附件</el-button>
@@ -208,7 +209,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, UploadFilled } from '@element-plus/icons-vue'
 import {
@@ -262,6 +263,8 @@ function openEdit(row) {
     ? { id: row.id, courseId: row.courseId, title: row.title, content: row.content, deadline: row.deadline }
     : { id: null, courseId: null, title: '', content: '', deadline: '' })
   editVisible.value = true
+  // 清除上次遗留的校验红字
+  nextTick(() => formRef.value?.clearValidate())
 }
 async function handleSave() {
   await formRef.value.validate()
@@ -305,6 +308,14 @@ async function openSubmit(row) {
     }
   }
   submitVisible.value = true
+}
+const MAX_UPLOAD_SIZE = 20 * 1024 * 1024 // 20MB
+function beforeUpload(file) {
+  if (file.size > MAX_UPLOAD_SIZE) {
+    ElMessage.error('附件大小不能超过 20MB')
+    return false
+  }
+  return true
 }
 async function doUpload({ file }) {
   const data = await uploadFile(file)

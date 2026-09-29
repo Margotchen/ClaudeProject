@@ -25,3 +25,13 @@
 .base-card {
   transition: all 0.3s ease;
 }
+
+/* 弹窗内容超高时内部滚动，避免小窗口下按钮/表单项被截断 */
+.el-dialog {
+  max-width: calc(100vw - 32px);
+
+  .el-dialog__body {
+    max-height: calc(80vh - 110px);
+    overflow-y: auto;
+  }
+}

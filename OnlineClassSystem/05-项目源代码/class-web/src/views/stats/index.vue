@@ -236,7 +236,7 @@ watch(() => themeStore.theme, () => {
 const loadDistribution = async () => {
   if (!distributionCourseId.value) return
   const res = await scoreDistribution(distributionCourseId.value)
-  renderPie(res.data)
+  renderPie(res)
 }
 
 const handleExport = (format) => {
@@ -253,12 +253,12 @@ onMounted(async () => {
   try {
     if (isStudent.value) {
       const res = await myProgress()
-      my.value = res.data
+      my.value = res
     } else {
       const [ov, cs] = await Promise.all([statsOverview(), courseStats()])
-      overview.value = ov.data
-      courseList.value = cs.data
-      studentStats().then(res => { studentList.value = res.data })
+      overview.value = ov
+      courseList.value = cs
+      studentStats().then(res => { studentList.value = res })
       await nextTick()
       renderBar()
       if (courseList.value.length > 0) {

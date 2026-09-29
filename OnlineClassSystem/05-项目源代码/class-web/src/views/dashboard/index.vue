@@ -134,9 +134,9 @@ function enterRoom(s) {
 onMounted(async () => {
   // 指标数据
   if (isStudent.value) {
-    myProgress().then(res => { my.value = res.data }).catch(() => {})
+    myProgress().then(res => { my.value = res }).catch(() => {})
   } else {
-    statsOverview().then(res => { overview.value = res.data }).catch(() => {})
+    statsOverview().then(res => { overview.value = res }).catch(() => {})
   }
   // 今日直播
   scheduleLoading.value = true
