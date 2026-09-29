@@ -1,0 +1,44 @@
+/* 主题变量：浅色 / 深色（对应 PRD 视觉规范） */
+:root[data-theme='light'] {
+  --color-primary: #4080ff;
+  --color-primary-end: #6a5cff;
+  --color-primary-light: #e8f0ff;
+  --color-success: #00b42a;
+  --color-warning: #ff7d00;
+  --color-danger: #f53f3f;
+  --color-bg-base: #f5f7fa;
+  --color-bg-card: #ffffff;
+  --color-text-primary: #1d2129;
+  --color-text-secondary: #4e5969;
+  --color-text-placeholder: #86909c;
+  --color-border: #e5e6eb;
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 6px 16px rgba(0, 0, 0, 0.1);
+  --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.18);
+  --radius-base: 8px;
+}
+
+:root[data-theme='dark'] {
+  --color-primary: #528bff;
+  --color-primary-end: #3d5af1;
+  --color-primary-light: #1d2b4a;
+  --color-success: #0fc43a;
+  --color-warning: #ff8a1a;
+  --color-danger: #f75555;
+  --color-bg-base: #121212;
+  --color-bg-card: #1e1e1e;
+  --color-text-primary: #e5e6eb;
+  --color-text-secondary: #a9aeb8;
+  --color-text-placeholder: #6b7280;
+  --color-border: #2d2d2d;
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 6px 16px rgba(0, 0, 0, 0.45);
+  --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.55);
+  --radius-base: 8px;
+}
+
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}

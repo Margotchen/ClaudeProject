@@ -1,0 +1,46 @@
+/* 主题变量：浅色 / 深色（GitHub 风品牌蓝） */
+:root[data-theme='light'] {
+  --color-primary: #0969da;
+  --color-primary-end: #0550ae;
+  --color-primary-light: #ddf4ff;
+  --color-success: #1a7f37;
+  --color-warning: #bf8700;
+  --color-danger: #cf222e;
+  --color-bg-base: #f6f8fa;
+  --color-bg-card: #ffffff;
+  --color-bg-hover: #eaeef2;
+  --color-text-primary: #24292f;
+  --color-text-secondary: #57606a;
+  --color-text-placeholder: #6e7681;
+  --color-border: #d0d7de;
+  --shadow-card: 0 1px 3px rgba(27, 31, 36, 0.08);
+  --shadow-card-hover: 0 6px 16px rgba(27, 31, 36, 0.12);
+  --shadow-float: 0 12px 40px rgba(27, 31, 36, 0.18);
+  --radius-base: 8px;
+}
+
+:root[data-theme='dark'] {
+  --color-primary: #4493f8;
+  --color-primary-end: #1f6feb;
+  --color-primary-light: #122d42;
+  --color-success: #3fb950;
+  --color-warning: #d29922;
+  --color-danger: #f85149;
+  --color-bg-base: #0d1117;
+  --color-bg-card: #161b22;
+  --color-bg-hover: #21262d;
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #9198a1;
+  --color-text-placeholder: #6e7681;
+  --color-border: #30363d;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 6px 16px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.6);
+  --radius-base: 8px;
+}
+
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}

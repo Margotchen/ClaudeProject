@@ -1,0 +1,402 @@
+<template>
+  <div class="flight-search">
+    <el-card class="search-card">
+      <el-form :model="searchForm" inline>
+        <el-form-item :label="$t('flightSearch.origin')">
+          <el-select v-model="searchForm.origin" :placeholder="$t('flightSearch.originPlaceholder')" style="width: 220px">
+            <el-option v-for="a in airports" :key="a.code" :label="`${a.city} (${a.code})`" :value="a.code" />
+          </el-select>
+        </el-form-item>
+        <el-form-item :label="$t('flightSearch.destination')">
+          <el-select v-model="searchForm.destination" :placeholder="$t('flightSearch.destinationPlaceholder')" style="width: 220px">
+            <el-option v-for="a in airports" :key="a.code" :label="`${a.city} (${a.code})`" :value="a.code" />
+          </el-select>
+        </el-form-item>
+        <el-form-item :label="$t('flightSearch.date')">
+          <el-date-picker v-model="searchForm.date" type="date" value-format="YYYY-MM-DD" :disabled-date="disabledDate" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch" :loading="loading">{{ $t('common.search') }}</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card v-loading="weekLoading" class="week-card">
+      <template #header>
+        <div class="card-header">
+          <span>{{ $t('flightSearch.weeklyTitle') }}</span>
+        </div>
+      </template>
+      <FlightWeekBar
+        :items="weekItems"
+        :selected-date="searchForm.date"
+        :lowest-text="$t('flightSearch.lowest')"
+        @select="handleSelectDate"
+        @prev-week="handlePrevWeek"
+        @next-week="handleNextWeek"
+      />
+    </el-card>
+
+    <el-card v-loading="loading" class="result-card">
+      <template #header>
+        <div class="card-header">
+          <span>{{ $t('flightSearch.results') }}</span>
+          <span v-if="pagination.total">{{ $t('flightSearch.found', { count: pagination.total }) }}</span>
+        </div>
+      </template>
+
+      <el-empty v-if="flightList.length === 0 && !loading" :description="$t('flightSearch.emptyTip')" :image-size="80" />
+
+      <div v-for="item in flightList" :key="item.id" class="flight-item">
+        <div class="flight-info">
+          <div class="airline">{{ item.flight?.flight_no }}</div>
+          <div class="route">
+            <div class="airport">
+              <div class="time">{{ formatTime(item.departure_time) }}</div>
+              <div class="code">{{ item.flight?.departureAirport?.airport_code }}</div>
+              <div class="city">{{ item.flight?.departureAirport?.city_name }}</div>
+            </div>
+            <div class="arrow">→</div>
+            <div class="airport">
+              <div class="time">{{ formatTime(item.arrival_time) }}</div>
+              <div class="code">{{ item.flight?.arrivalAirport?.airport_code }}</div>
+              <div class="city">{{ item.flight?.arrivalAirport?.city_name }}</div>
+            </div>
+          </div>
+          <div class="aircraft">{{ item.aircraft?.model }}</div>
+          <div class="status">
+            <el-tag :type="flightStatusType(item.status)">{{ flightStatusText(item.status) }}</el-tag>
+            <span v-if="item.delay_minutes > 0" class="delay">+{{ item.delay_minutes }} min</span>
+          </div>
+        </div>
+
+        <div class="cabin-list">
+          <div v-for="cabin in cabinClasses" :key="cabin.key" class="cabin-item">
+            <div class="cabin-name">{{ cabin.label }}</div>
+            <div class="price">¥{{ getCabinPrice(item, cabin.key) }}</div>
+            <div class="seats">{{ $t('flightSearch.seatsLeft', { count: getCabinSeats(item, cabin.key) }) }}</div>
+            <el-button type="primary" size="small" @click="goBooking(item, cabin.key)">{{ $t('flightSearch.book') }}</el-button>
+          </div>
+        </div>
+      </div>
+
+      <el-pagination
+        v-if="pagination.total > 0"
+        v-model:current-page="pagination.page"
+        v-model:page-size="pagination.pageSize"
+        :total="pagination.total"
+        layout="prev, pager, next"
+        @current-change="handlePageChange"
+      />
+    </el-card>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { searchFlights, getWeeklyPrices } from '@/api/flight'
+import { useI18n } from '@/composables/useI18n'
+import { useI18nHelpers } from '@/composables/useI18nHelpers'
+import { getWeekRange, markLowestPrice, addDays } from '@/composables/useWeeklyFlights'
+import FlightWeekBar from '@/components/FlightWeekBar.vue'
+
+const router = useRouter()
+const { t } = useI18n()
+const { formatTime, flightStatusType, flightStatusText } = useI18nHelpers()
+
+const loading = ref(false)
+const flightList = ref([])
+const weekLoading = ref(false)
+const weekItems = ref([])
+const weekCenterDate = ref('')
+
+const airports = [
+  { code: 'PEK', city: 'Beijing' },
+  { code: 'SHA', city: 'Shanghai' },
+  { code: 'CAN', city: 'Guangzhou' },
+  { code: 'SZX', city: 'Shenzhen' },
+  { code: 'TFU', city: 'Chengdu' }
+]
+
+const cabinClasses = computed(() => [
+  { key: 'economy', label: t('cabin.economy') },
+  { key: 'business', label: t('cabin.business') },
+  { key: 'first', label: t('cabin.first') }
+])
+
+const searchForm = reactive({
+  origin: 'PEK',
+  destination: 'SHA',
+  date: ''
+})
+
+const pagination = reactive({
+  page: 1,
+  pageSize: 10,
+  total: 0
+})
+
+const disabledDate = (date) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return date < today
+}
+
+const getCabinPrice = (item, cabin) => {
+  return item[`${cabin}_price`] || 0
+}
+
+const getCabinSeats = (item, cabin) => {
+  const inv = item.seatInventories?.find(i => i.cabin_class === cabin)
+  return inv ? inv.available_seats : 0
+}
+
+const handleSearch = () => {
+  if (!searchForm.origin || !searchForm.destination || !searchForm.date) {
+    ElMessage.warning(t('flightSearch.missingFields'))
+    return
+  }
+  if (searchForm.origin === searchForm.destination) {
+    ElMessage.warning(t('flightSearch.sameAirport'))
+    return
+  }
+  pagination.page = 1
+  loadFlights()
+}
+
+const handlePageChange = () => {
+  loadFlights()
+}
+
+const loadFlights = async () => {
+  loading.value = true
+  try {
+    const res = await searchFlights({
+      origin: searchForm.origin,
+      destination: searchForm.destination,
+      date: searchForm.date,
+      page: pagination.page,
+      pageSize: pagination.pageSize
+    })
+    flightList.value = res.data.list
+    pagination.total = res.data.pagination.total
+  } finally {
+    loading.value = false
+  }
+}
+
+let weekPricesRequestId = 0
+
+const loadWeekPrices = async () => {
+  if (!searchForm.origin || !searchForm.destination || !weekCenterDate.value) return
+  if (searchForm.origin === searchForm.destination) return
+
+  const requestId = ++weekPricesRequestId
+  const dates = getWeekRange(weekCenterDate.value)
+  weekLoading.value = true
+  try {
+    const res = await getWeeklyPrices({
+      origin: searchForm.origin,
+      destination: searchForm.destination,
+      startDate: dates[0],
+      endDate: dates[6]
+    })
+    if (requestId !== weekPricesRequestId) return
+    const priceMap = {}
+    res.data.forEach(item => {
+      priceMap[item.date] = item.lowestPrice
+    })
+    const items = dates.map(date => ({
+      date,
+      price: priceMap[date] ?? null
+    }))
+    weekItems.value = markLowestPrice(items)
+  } catch (err) {
+    if (requestId !== weekPricesRequestId) return
+    console.error(err)
+    weekItems.value = markLowestPrice(dates.map(date => ({ date, price: null })))
+  } finally {
+    if (requestId === weekPricesRequestId) {
+      weekLoading.value = false
+    }
+  }
+}
+
+const handleSelectDate = (date) => {
+  searchForm.date = date
+  weekCenterDate.value = date
+  handleSearch()
+}
+
+const handlePrevWeek = () => {
+  weekCenterDate.value = addDays(weekCenterDate.value, -7)
+}
+
+const handleNextWeek = () => {
+  weekCenterDate.value = addDays(weekCenterDate.value, 7)
+}
+
+watch(() => [searchForm.origin, searchForm.destination, weekCenterDate.value], () => {
+  loadWeekPrices()
+})
+
+watch(() => searchForm.date, (date) => {
+  if (date) {
+    weekCenterDate.value = date
+  }
+})
+
+const goBooking = (item, cabin) => {
+  if (item.status === 3) {
+    ElMessage.warning(t('flightSearch.cancelled'))
+    return
+  }
+  const seats = getCabinSeats(item, cabin)
+  if (seats <= 0) {
+    ElMessage.warning(t('flightSearch.noSeats'))
+    return
+  }
+  router.push(`/passenger/booking/${item.id}?cabin=${cabin}`)
+}
+
+const formatLocalDate = (date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+onMounted(() => {
+  const today = new Date()
+  searchForm.date = formatLocalDate(today)
+  weekCenterDate.value = searchForm.date
+})
+</script>
+
+<style scoped>
+.flight-search {
+  padding: 20px;
+}
+
+.search-card,
+.week-card,
+.result-card {
+  margin-bottom: 20px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.empty-tip {
+  text-align: center;
+  color: var(--color-text-placeholder);
+  padding: 40px 0;
+}
+
+.flight-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.flight-item:last-child {
+  border-bottom: none;
+}
+
+.flight-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+.airline {
+  font-weight: bold;
+  font-size: 16px;
+  width: 100px;
+}
+
+.route {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+}
+
+.airport {
+  text-align: center;
+}
+
+.time {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.code {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.city {
+  color: var(--color-text-placeholder);
+  font-size: 12px;
+}
+
+.arrow {
+  font-size: 20px;
+  color: var(--color-text-placeholder);
+}
+
+.aircraft {
+  width: 140px;
+  color: var(--color-text-secondary);
+}
+
+.status {
+  width: 120px;
+}
+
+.delay {
+  color: var(--color-warning);
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+.cabin-list {
+  display: flex;
+  gap: 20px;
+}
+
+.cabin-item {
+  width: 120px;
+  text-align: center;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.cabin-name {
+  font-size: 12px;
+  color: var(--color-text-placeholder);
+}
+
+.price {
+  color: var(--color-danger);
+  font-size: 18px;
+  font-weight: bold;
+  margin: 5px 0;
+}
+
+.seats {
+  font-size: 12px;
+  color: var(--color-success);
+  margin-bottom: 8px;
+}
+</style>

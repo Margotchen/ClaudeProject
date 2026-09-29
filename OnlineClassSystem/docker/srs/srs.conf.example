@@ -1,0 +1,51 @@
+# SRS 5 配置：WebRTC 推拉流 + DVR 自动录制 + 录制完成回调
+listen 1935;
+max_connections 1000;
+daemon off;
+srs_log_tank console;
+srs_log_level trace;
+
+http_api {
+    enabled on;
+    listen 1985;
+}
+
+http_server {
+    enabled on;
+    listen 8080;
+    dir ./objs/nginx/html;
+}
+
+rtc_server {
+    enabled on;
+    listen 8000;
+    # 本机开发环境
+    candidate 127.0.0.1;
+}
+
+vhost __defaultVhost__ {
+    rtc {
+        enabled on;
+        # WHIP 推的是 WebRTC 流，转 RTMP 后才能被 DVR 录制
+        rtmp_to_rtc on;
+        rtc_to_rtmp on;
+    }
+
+    http_remux {
+        enabled on;
+    }
+
+    # 自动录制：一次推流会话生成一个 FLV
+    dvr {
+        enabled on;
+        dvr_plan session;
+        dvr_path /data/dvr/[app]/[stream]_[2006][01][02][15][04][05][999].flv;
+        time_jitter full;
+    }
+
+    # 录制完成回调后端，生成录播记录
+    http_hooks {
+        enabled on;
+        on_dvr http://host.docker.internal:8090/api/live/record/dvr-callback?token=replace-with-your-callback-token;
+    }
+}

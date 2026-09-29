@@ -1,0 +1,44 @@
+// 买家端设计变量与 mixin
+// 注意：本文件通过 vite.config.ts additionalData 注入到每个 scss 块，
+// 只能写变量与 mixin，禁止输出任何选择器，否则全站样式重复输出。
+
+// 深色导航/Tabbar
+$buyer-dark: #191a23;
+$buyer-dark-deep: #12131b;
+
+// 内容区
+$buyer-bg: #f5f6f8;
+$buyer-card: #ffffff;
+
+// 强调色（金）
+$buyer-accent: #c9a063;
+$buyer-accent-strong: #a98445;
+
+// 价格色（低饱和赭橙）
+$buyer-price: #d9643b;
+
+// 文字
+$buyer-text-1: #1f2430;
+$buyer-text-2: #6b7280;
+$buyer-text-3: #9ca3af;
+$buyer-text-on-dark: #f3f4f6;
+$buyer-text-on-dark-dim: #8b8f9c;
+
+// 形状与阴影
+$buyer-radius-card: 14px;
+$buyer-shadow-card: 0 2px 12px rgba(18, 19, 27, 0.05);
+$buyer-shadow-card-hover: 0 8px 20px rgba(18, 19, 27, 0.1);
+
+@mixin buyer-card {
+  background: $buyer-card;
+  border-radius: $buyer-radius-card;
+  box-shadow: $buyer-shadow-card;
+}
+
+@mixin text-ellipsis-2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}

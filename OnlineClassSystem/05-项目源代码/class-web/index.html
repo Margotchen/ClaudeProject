@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>在线课堂直播平台</title>
+    <script>
+      // 挂载前应用本地缓存主题，避免首屏白闪
+      ;(function () {
+        var theme = localStorage.getItem('theme') || 'light'
+        document.documentElement.setAttribute('data-theme', theme)
+        if (theme === 'dark') document.documentElement.classList.add('dark')
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

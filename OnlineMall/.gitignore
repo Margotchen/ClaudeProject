@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temp files
+cookies*.txt
+tmp/
+temp/
+/claude.md
+
+# Sensitive config files (dev/prod credentials)
+05-项目源代码/backend/*/src/main/resources/application-dev.yml
+05-项目源代码/backend/*/src/main/resources/application-prod.yml
+05-项目源代码/frontend/.env.production
+
+# Backup git directories from cloned submodules
+05-项目源代码/backend.git.bak/
+05-项目源代码/frontend.git.bak/
+
+# Local environment setup binaries
+openjdk-17_windows-x64_bin.zip
+apache-maven-3.9.16-bin.tar.gz
+
+# Runtime uploaded files
+05-项目源代码/backend/mall-admin/uploads/
+
+# AI conversation records
+04-AI对话记录/

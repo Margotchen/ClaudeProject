@@ -1,0 +1,468 @@
+import { createRouter, createWebHashHistory } from 'vue-router'
+import Layout from '@/views/layout/Layout.vue'
+import type { RouteRecordExt } from '@/types/router'
+
+export const constantRouterMap: RouteRecordExt[] = [
+  { path: '/404', component: () => import('@/views/normal/404/index.vue'), hidden: true },
+  { path: '/login', component: () => import('@/views/normal/login/index.vue'), hidden: true },
+  // 未匹配路径统一落 404
+  { path: '/:pathMatch(.*)*', redirect: '/404', hidden: true },
+  {
+    path: '',
+    component: Layout,
+    redirect: '/home',
+    meta: { title: '首页', icon: 'home' },
+    children: [
+      {
+        path: 'home',
+        name: 'home',
+        component: () => import('@/views/home/index.vue'),
+        meta: { title: '首页', icon: 'dashboard' },
+      },
+    ],
+  },
+  {
+    path: '/mall',
+    component: () => import('@/views/mall/layout/index.vue'),
+    redirect: '/mall/index',
+    name: 'mall',
+    meta: { title: '商品橱窗', icon: 'product' },
+    children: [
+      {
+        path: 'index',
+        name: 'mallIndex',
+        component: () => import('@/views/mall/index.vue'),
+        meta: { title: '商品橱窗', icon: 'product' },
+      },
+    ],
+  },
+  {
+    path: '/buyer/login',
+    component: () => import('@/views/buyer/login/index.vue'),
+    hidden: true,
+  },
+  {
+    path: '/buyer/register',
+    component: () => import('@/views/buyer/register/index.vue'),
+    hidden: true,
+  },
+  {
+    path: '/buyer',
+    component: () => import('@/views/buyer/layout/index.vue'),
+    redirect: '/buyer/index',
+    name: 'buyer',
+    children: [
+      {
+        path: 'index',
+        name: 'buyerIndex',
+        component: () => import('@/views/buyer/index/index.vue'),
+        meta: { title: '商城首页' },
+      },
+      {
+        path: 'product/:id',
+        name: 'buyerProduct',
+        component: () => import('@/views/buyer/product/index.vue'),
+        meta: { title: '商品详情' },
+      },
+      {
+        path: 'cart',
+        name: 'buyerCart',
+        component: () => import('@/views/buyer/cart/index.vue'),
+        meta: { title: '购物车' },
+      },
+      {
+        path: 'order/confirm',
+        name: 'buyerOrderConfirm',
+        component: () => import('@/views/buyer/order/confirm.vue'),
+        meta: { title: '确认订单' },
+      },
+      {
+        path: 'order/list',
+        name: 'buyerOrderList',
+        component: () => import('@/views/buyer/order/list.vue'),
+        meta: { title: '我的订单' },
+      },
+      {
+        path: 'order/detail/:id',
+        name: 'buyerOrderDetail',
+        component: () => import('@/views/buyer/order/detail.vue'),
+        meta: { title: '订单详情' },
+      },
+      {
+        path: 'profile',
+        name: 'buyerProfile',
+        component: () => import('@/views/buyer/profile/index.vue'),
+        meta: { title: '个人中心' },
+      },
+      {
+        path: 'address',
+        name: 'buyerAddress',
+        component: () => import('@/views/buyer/address/index.vue'),
+        meta: { title: '收货地址' },
+      },
+      {
+        path: 'aftersale',
+        name: 'buyerAfterSale',
+        component: () => import('@/views/buyer/aftersale/index.vue'),
+        meta: { title: '退款/售后' },
+      },
+    ],
+  },
+]
+
+export const asyncRouterMap: RouteRecordExt[] = [
+  {
+    path: '/pms',
+    component: Layout,
+    redirect: '/pms/product',
+    name: 'pms',
+    meta: { title: '商品', icon: 'product' },
+    children: [
+      {
+        path: 'product',
+        name: 'product',
+        component: () => import('@/views/pms/product/index.vue'),
+        meta: { title: '商品列表', icon: 'product-list' },
+      },
+      {
+        path: 'addProduct',
+        name: 'addProduct',
+        component: () => import('@/views/pms/product/add.vue'),
+        meta: { title: '添加商品', icon: 'product-add' },
+      },
+      {
+        path: 'updateProduct',
+        name: 'updateProduct',
+        component: () => import('@/views/pms/product/update.vue'),
+        meta: { title: '修改商品', icon: 'product-add' },
+        hidden: true,
+      },
+      {
+        path: 'productCate',
+        name: 'productCate',
+        component: () => import('@/views/pms/productCate/index.vue'),
+        meta: { title: '商品分类', icon: 'product-cate' },
+      },
+      {
+        path: 'addProductCate',
+        name: 'addProductCate',
+        component: () => import('@/views/pms/productCate/add.vue'),
+        meta: { title: '添加商品分类' },
+        hidden: true,
+      },
+      {
+        path: 'updateProductCate',
+        name: 'updateProductCate',
+        component: () => import('@/views/pms/productCate/update.vue'),
+        meta: { title: '修改商品分类' },
+        hidden: true,
+      },
+      {
+        path: 'productAttr',
+        name: 'productAttr',
+        component: () => import('@/views/pms/productAttr/index.vue'),
+        meta: { title: '商品类型', icon: 'product-attr' },
+      },
+      {
+        path: 'productAttrList',
+        name: 'productAttrList',
+        component: () => import('@/views/pms/productAttr/productAttrList.vue'),
+        meta: { title: '商品属性列表' },
+        hidden: true,
+      },
+      {
+        path: 'addProductAttr',
+        name: 'addProductAttr',
+        component: () => import('@/views/pms/productAttr/addProductAttr.vue'),
+        meta: { title: '添加商品属性' },
+        hidden: true,
+      },
+      {
+        path: 'updateProductAttr',
+        name: 'updateProductAttr',
+        component: () => import('@/views/pms/productAttr/updateProductAttr.vue'),
+        meta: { title: '修改商品属性' },
+        hidden: true,
+      },
+      {
+        path: 'brand',
+        name: 'brand',
+        component: () => import('@/views/pms/brand/index.vue'),
+        meta: { title: '品牌管理', icon: 'product-brand' },
+      },
+      {
+        path: 'addBrand',
+        name: 'addBrand',
+        component: () => import('@/views/pms/brand/add.vue'),
+        meta: { title: '添加品牌' },
+        hidden: true,
+      },
+      {
+        path: 'updateBrand',
+        name: 'updateBrand',
+        component: () => import('@/views/pms/brand/update.vue'),
+        meta: { title: '编辑品牌' },
+        hidden: true,
+      },
+    ],
+  },
+  {
+    path: '/oms',
+    component: Layout,
+    redirect: '/oms/order',
+    name: 'oms',
+    meta: { title: '订单', icon: 'order' },
+    children: [
+      {
+        path: 'order',
+        name: 'order',
+        component: () => import('@/views/oms/order/index.vue'),
+        meta: { title: '订单列表', icon: 'product-list' },
+      },
+      {
+        path: 'orderDetail',
+        name: 'orderDetail',
+        component: () => import('@/views/oms/order/orderDetail.vue'),
+        meta: { title: '订单详情' },
+        hidden: true,
+      },
+      {
+        path: 'deliverOrderList',
+        name: 'deliverOrderList',
+        component: () => import('@/views/oms/order/deliverOrderList.vue'),
+        meta: { title: '发货列表' },
+        hidden: true,
+      },
+      {
+        path: 'orderSetting',
+        name: 'orderSetting',
+        component: () => import('@/views/oms/order/setting.vue'),
+        meta: { title: '订单设置', icon: 'order-setting' },
+      },
+      {
+        path: 'returnApply',
+        name: 'returnApply',
+        component: () => import('@/views/oms/apply/index.vue'),
+        meta: { title: '退货申请处理', icon: 'order-return' },
+      },
+      {
+        path: 'returnReason',
+        name: 'returnReason',
+        component: () => import('@/views/oms/apply/reason.vue'),
+        meta: { title: '退货原因设置', icon: 'order-return-reason' },
+      },
+      {
+        path: 'returnApplyDetail',
+        name: 'returnApplyDetail',
+        component: () => import('@/views/oms/apply/applyDetail.vue'),
+        meta: { title: '退货申请详情' },
+        hidden: true,
+      },
+    ],
+  },
+  {
+    path: '/sms',
+    component: Layout,
+    redirect: '/sms/coupon',
+    name: 'sms',
+    meta: { title: '营销', icon: 'sms' },
+    children: [
+      {
+        path: 'flash',
+        name: 'flash',
+        component: () => import('@/views/sms/flash/index.vue'),
+        meta: { title: '秒杀活动列表', icon: 'sms-flash' },
+      },
+      {
+        path: 'flashSession',
+        name: 'flashSession',
+        component: () => import('@/views/sms/flash/sessionList.vue'),
+        meta: { title: '秒杀时间段列表' },
+        hidden: true,
+      },
+      {
+        path: 'selectSession',
+        name: 'selectSession',
+        component: () => import('@/views/sms/flash/selectSessionList.vue'),
+        meta: { title: '秒杀时间段选择' },
+        hidden: true,
+      },
+      {
+        path: 'flashProductRelation',
+        name: 'flashProductRelation',
+        component: () => import('@/views/sms/flash/productRelationList.vue'),
+        meta: { title: '秒杀商品列表' },
+        hidden: true,
+      },
+      {
+        path: 'coupon',
+        name: 'coupon',
+        component: () => import('@/views/sms/coupon/index.vue'),
+        meta: { title: '优惠券列表', icon: 'sms-coupon' },
+      },
+      {
+        path: 'addCoupon',
+        name: 'addCoupon',
+        component: () => import('@/views/sms/coupon/add.vue'),
+        meta: { title: '添加优惠券' },
+        hidden: true,
+      },
+      {
+        path: 'updateCoupon',
+        name: 'updateCoupon',
+        component: () => import('@/views/sms/coupon/update.vue'),
+        meta: { title: '修改优惠券' },
+        hidden: true,
+      },
+      {
+        path: 'couponHistory',
+        name: 'couponHistory',
+        component: () => import('@/views/sms/coupon/history.vue'),
+        meta: { title: '优惠券领取详情' },
+        hidden: true,
+      },
+      {
+        path: 'brand',
+        name: 'homeBrand',
+        component: () => import('@/views/sms/brand/index.vue'),
+        meta: { title: '品牌推荐', icon: 'product-brand' },
+      },
+      {
+        path: 'new',
+        name: 'homeNew',
+        component: () => import('@/views/sms/new/index.vue'),
+        meta: { title: '新品推荐', icon: 'sms-new' },
+      },
+      {
+        path: 'hot',
+        name: 'homeHot',
+        component: () => import('@/views/sms/hot/index.vue'),
+        meta: { title: '人气推荐', icon: 'sms-hot' },
+      },
+      {
+        path: 'subject',
+        name: 'homeSubject',
+        component: () => import('@/views/sms/subject/index.vue'),
+        meta: { title: '专题推荐', icon: 'sms-subject' },
+      },
+      {
+        path: 'advertise',
+        name: 'homeAdvertise',
+        component: () => import('@/views/sms/advertise/index.vue'),
+        meta: { title: '广告列表', icon: 'sms-ad' },
+      },
+      {
+        path: 'addAdvertise',
+        name: 'addHomeAdvertise',
+        component: () => import('@/views/sms/advertise/add.vue'),
+        meta: { title: '添加广告' },
+        hidden: true,
+      },
+      {
+        path: 'updateAdvertise',
+        name: 'updateHomeAdvertise',
+        component: () => import('@/views/sms/advertise/update.vue'),
+        meta: { title: '编辑广告' },
+        hidden: true,
+      },
+    ],
+  },
+  {
+    path: '/statistics',
+    component: Layout,
+    redirect: '/statistics/dashboard',
+    name: 'statistics',
+    meta: { title: '统计报表', icon: 'statistics' },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'statisticsDashboard',
+        component: () => import('@/views/statistics/dashboard/index.vue'),
+        meta: { title: '数据看板', icon: 'dashboard' },
+      },
+    ],
+  },
+  {
+    path: '/ums',
+    component: Layout,
+    redirect: '/ums/admin',
+    name: 'ums',
+    meta: { title: '权限', icon: 'ums' },
+    children: [
+      {
+        path: 'admin',
+        name: 'admin',
+        component: () => import('@/views/ums/admin/index.vue'),
+        meta: { title: '用户列表', icon: 'ums-admin' },
+      },
+      {
+        path: 'role',
+        name: 'role',
+        component: () => import('@/views/ums/role/index.vue'),
+        meta: { title: '角色列表', icon: 'ums-role' },
+      },
+      {
+        path: 'allocMenu',
+        name: 'allocMenu',
+        component: () => import('@/views/ums/role/allocMenu.vue'),
+        meta: { title: '分配菜单' },
+        hidden: true,
+      },
+      {
+        path: 'allocResource',
+        name: 'allocResource',
+        component: () => import('@/views/ums/role/allocResource.vue'),
+        meta: { title: '分配资源' },
+        hidden: true,
+      },
+      {
+        path: 'menu',
+        name: 'menu',
+        component: () => import('@/views/ums/menu/index.vue'),
+        meta: { title: '菜单列表', icon: 'ums-menu' },
+      },
+      {
+        path: 'addMenu',
+        name: 'addMenu',
+        component: () => import('@/views/ums/menu/add.vue'),
+        meta: { title: '添加菜单' },
+        hidden: true,
+      },
+      {
+        path: 'updateMenu',
+        name: 'updateMenu',
+        component: () => import('@/views/ums/menu/update.vue'),
+        meta: { title: '修改菜单' },
+        hidden: true,
+      },
+      {
+        path: 'resource',
+        name: 'resource',
+        component: () => import('@/views/ums/resource/index.vue'),
+        meta: { title: '资源列表', icon: 'ums-resource' },
+      },
+      {
+        path: 'resourceCategory',
+        name: 'resourceCategory',
+        component: () => import('@/views/ums/resource/categoryList.vue'),
+        meta: { title: '资源分类' },
+        hidden: true,
+      },
+      {
+        path: 'merchant',
+        name: 'merchant',
+        component: () => import('@/views/ums/merchant/index.vue'),
+        meta: { title: '商家管理', icon: 'ums-admin' },
+      },
+    ],
+  },
+]
+
+// createWebHistory（History 模式）地址格式（需要服务器配置）：http://domain.com/admin/home
+// createWebHashHistory（Hash 模式）地址格式（会多带一个#号）：http://domain.com/admin/#/home
+const router = createRouter({
+  history: createWebHashHistory(),
+  routes: constantRouterMap,
+})
+
+export default router

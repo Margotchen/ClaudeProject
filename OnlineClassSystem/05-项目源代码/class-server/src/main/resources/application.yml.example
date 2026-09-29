@@ -1,0 +1,59 @@
+# 配置示例：复制为 application.yml 并填入本地实际值
+server:
+  port: 8090
+
+spring:
+  application:
+    name: class-server
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/online_class?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: ${MYSQL_PASSWORD:change-me}
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+jwt:
+  token-header: Authorization
+  # 必须替换为随机生成的密钥，勿提交真实值
+  secret: replace-with-your-own-jwt-secret
+  expiration: 86400
+  token-head: "Bearer "
+
+# SRS 流媒体服务配置
+srs:
+  enabled: true
+  # WebRTC 推流（WHIP），讲师网页端
+  whip-url: http://localhost:1985/rtc/v1/whip/?app=live&stream=
+  # WebRTC 拉流（WHEP），学生端
+  whep-url: http://localhost:1985/rtc/v1/whep/?app=live&stream=
+  # HTTP-FLV 拉流（备用）
+  flv-url: http://localhost:8088/live/
+  flv-suffix: .flv
+
+# 课程录播配置
+record:
+  # SRS 容器 /data/dvr 挂载的宿主机目录
+  dir: /path/to/OnlineClassSystem/docker/srs/dvr
+  # SRS on_dvr 回调鉴权 token（与 docker/srs/srs.conf 中回调地址一致）
+  callback-token: replace-with-your-callback-token
+
+# 文件上传配置（作业附件等）
+file:
+  upload-dir: /path/to/OnlineClassSystem/upload

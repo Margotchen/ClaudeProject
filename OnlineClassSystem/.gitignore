@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+target/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temp files
+cookies*.txt
+tmp/
+temp/
+/claude.md
+
+# Runtime artifacts
+upload/
+docker/srs/dvr/
+
+# Sensitive config files — commit .example versions instead
+05-项目源代码/class-server/src/main/resources/application.yml
+docker/srs/srs.conf
+
+# Local environment setup binaries
+openjdk-17_windows-x64_bin.zip
+apache-maven-3.9.16-bin.tar.gz
+
+# AI conversation records
+04-AI对话记录/

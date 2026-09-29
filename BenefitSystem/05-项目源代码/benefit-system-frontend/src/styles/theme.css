@@ -1,0 +1,44 @@
+/* 主题变量：浅色 / 深色 */
+:root[data-theme='light'] {
+  --color-primary: #409eff;
+  --color-primary-end: #667eea;
+  --color-primary-light: #ecf5ff;
+  --color-success: #67c23a;
+  --color-warning: #e6a23c;
+  --color-danger: #f56c6c;
+  --color-bg-base: #f5f7fa;
+  --color-bg-card: #ffffff;
+  --color-text-primary: #303133;
+  --color-text-secondary: #606266;
+  --color-text-placeholder: #909399;
+  --color-border: #e5e6eb;
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 6px 16px rgba(0, 0, 0, 0.1);
+  --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.18);
+  --radius-base: 8px;
+}
+
+:root[data-theme='dark'] {
+  --color-primary: #5a9cff;
+  --color-primary-end: #7c8cf8;
+  --color-primary-light: #1d2b4a;
+  --color-success: #7ec650;
+  --color-warning: #eebe77;
+  --color-danger: #f78989;
+  --color-bg-base: #121212;
+  --color-bg-card: #1e1e1e;
+  --color-text-primary: #e5e6eb;
+  --color-text-secondary: #a9aeb8;
+  --color-text-placeholder: #6b7280;
+  --color-border: #2d2d2d;
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 6px 16px rgba(0, 0, 0, 0.45);
+  --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.55);
+  --radius-base: 8px;
+}
+
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
